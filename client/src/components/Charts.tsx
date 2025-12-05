@@ -19,6 +19,7 @@ export function VolumeBarChart({ data }: ChartProps) {
         <Legend />
         <Bar dataKey="opened" name="Abertos" fill="var(--color-blue-500)" radius={[4, 4, 0, 0]} />
         <Bar dataKey="closed" name="Fechados" fill="var(--color-green-500)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="pending" name="Pendentes" fill="var(--color-orange-500)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -65,6 +66,7 @@ export function TrendLineChart({ data }: ChartProps) {
         <Legend />
         <Line type="monotone" dataKey="opened" name="Abertos" stroke="var(--color-blue-500)" strokeWidth={2} dot={{ r: 4 }} />
         <Line type="monotone" dataKey="closed" name="Fechados" stroke="var(--color-green-500)" strokeWidth={2} dot={{ r: 4 }} />
+        <Line type="monotone" dataKey="pending" name="Pendentes" stroke="var(--color-orange-500)" strokeWidth={2} dot={{ r: 4 }} />
       </LineChart>
     </ResponsiveContainer>
   );

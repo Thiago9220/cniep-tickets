@@ -3,20 +3,71 @@ import { EditMonthlyDialog } from "@/components/EditMonthlyDialog";
 import { KpiCard } from "@/components/KpiCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useData } from "@/contexts/DataContext";
-import { BarChart3, CheckCircle, Download, ThumbsUp, Users } from "lucide-react";
+import { BarChart3, CheckCircle, ChevronLeft, ChevronRight, Download, ThumbsUp, Users } from "lucide-react";
+
+const MONTHS = [
+  { value: '2025-09', label: 'Setembro 2025' },
+  { value: '2025-10', label: 'Outubro 2025' },
+  { value: '2025-11', label: 'Novembro 2025' },
+  { value: '2025-12', label: 'Dezembro 2025' }
+];
 
 export default function MonthlyReport() {
-  const { monthlyData } = useData();
+  const { monthlyData, selectedMonth, setSelectedMonth } = useData();
+
+  const currentMonthIndex = MONTHS.findIndex(m => m.value === selectedMonth);
+  const canGoPrevious = currentMonthIndex > 0;
+  const canGoNext = currentMonthIndex < MONTHS.length - 1;
+
+  const goToPreviousMonth = () => {
+    if (canGoPrevious) {
+      setSelectedMonth(MONTHS[currentMonthIndex - 1].value);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (canGoNext) {
+      setSelectedMonth(MONTHS[currentMonthIndex + 1].value);
+    }
+  };
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Relatório Mensal</h2>
-          <p className="text-muted-foreground">
-            Período: {monthlyData.period}
-          </p>
+          <div className="flex items-center gap-3 mt-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToPreviousMonth}
+              disabled={!canGoPrevious}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToNextMonth}
+              disabled={!canGoNext}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <div className="flex gap-2">
           <EditMonthlyDialog />
@@ -28,12 +79,19 @@ export default function MonthlyReport() {
       </div>
 
       {/* KPIs Mensais */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           title="Total de Tickets"
           value={monthlyData.summary.totalTickets}
           description="Volume total no mês"
           trend="up"
+          icon={<BarChart3 className="h-4 w-4" />}
+        />
+        <KpiCard
+          title="Pendentes"
+          value={monthlyData.summary.pending}
+          description="Tickets em aberto"
+          trend="neutral"
           icon={<BarChart3 className="h-4 w-4" />}
         />
         <KpiCard
@@ -120,7 +178,7 @@ export default function MonthlyReport() {
             <ul className="space-y-3 text-sm">
               <li className="flex gap-2">
                 <span className="font-bold text-primary">•</span>
-                <span>Aumento de chamados via Chat, reduzindo a carga no telefone.</span>
+                <span>Aumento de chamados via GLPI, reduzindo a carga no telefone.</span>
               </li>
               <li className="flex gap-2">
                 <span className="font-bold text-primary">•</span>

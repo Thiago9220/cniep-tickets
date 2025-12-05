@@ -5,13 +5,20 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useData, WeeklyData } from "@/contexts/DataContext";
 import { Edit } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function EditWeeklyDialog() {
   const { weeklyData, updateWeeklyData } = useData();
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<WeeklyData>(weeklyData);
+
+  // Atualiza formData quando weeklyData mudar ou quando o diálogo abrir
+  useEffect(() => {
+    if (open) {
+      setFormData(weeklyData);
+    }
+  }, [open, weeklyData]);
 
   const handleSave = () => {
     updateWeeklyData(formData);
@@ -28,7 +35,7 @@ export function EditWeeklyDialog() {
           ...prev,
           [section]: {
             ...sectionData,
-            [field]: value,
+            [field]: value === '' ? 0 : value,
           },
         };
       }
@@ -39,7 +46,7 @@ export function EditWeeklyDialog() {
   const handleArrayChange = (arrayName: 'backlogByUrgency' | 'dailyVolume', index: number, field: string, value: any) => {
     setFormData((prev) => {
       const newArray = [...prev[arrayName]];
-      newArray[index] = { ...newArray[index], [field]: value };
+      newArray[index] = { ...newArray[index], [field]: value === '' ? 0 : value };
       return { ...prev, [arrayName]: newArray };
     });
   };
@@ -79,52 +86,52 @@ export function EditWeeklyDialog() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Abertos</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.summary.opened} 
-                    onChange={(e) => handleChange('summary', 'opened', Number(e.target.value))} 
+                  <Input
+                    type="number"
+                    value={formData.summary.opened || ''}
+                    onChange={(e) => handleChange('summary', 'opened', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Fechados</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.summary.closed} 
-                    onChange={(e) => handleChange('summary', 'closed', Number(e.target.value))} 
+                  <Input
+                    type="number"
+                    value={formData.summary.closed || ''}
+                    onChange={(e) => handleChange('summary', 'closed', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Backlog Total</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.summary.backlog} 
-                    onChange={(e) => handleChange('summary', 'backlog', Number(e.target.value))} 
+                  <Input
+                    type="number"
+                    value={formData.summary.backlog || ''}
+                    onChange={(e) => handleChange('summary', 'backlog', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Risco SLA</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.summary.slaRisk} 
-                    onChange={(e) => handleChange('summary', 'slaRisk', Number(e.target.value))} 
+                  <Input
+                    type="number"
+                    value={formData.summary.slaRisk || ''}
+                    onChange={(e) => handleChange('summary', 'slaRisk', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>TMA (Horas)</Label>
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     step="0.1"
-                    value={formData.summary.tma} 
-                    onChange={(e) => handleChange('summary', 'tma', Number(e.target.value))} 
+                    value={formData.summary.tma || ''}
+                    onChange={(e) => handleChange('summary', 'tma', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Meta TMA</Label>
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     step="0.1"
-                    value={formData.summary.tmaGoal} 
-                    onChange={(e) => handleChange('summary', 'tmaGoal', Number(e.target.value))} 
+                    value={formData.summary.tmaGoal || ''}
+                    onChange={(e) => handleChange('summary', 'tmaGoal', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -136,10 +143,10 @@ export function EditWeeklyDialog() {
                 {formData.backlogByUrgency.map((item, index) => (
                   <div key={item.name} className="grid gap-2">
                     <Label>{item.name}</Label>
-                    <Input 
-                      type="number" 
-                      value={item.value} 
-                      onChange={(e) => handleArrayChange('backlogByUrgency', index, 'value', Number(e.target.value))} 
+                    <Input
+                      type="number"
+                      value={item.value || ''}
+                      onChange={(e) => handleArrayChange('backlogByUrgency', index, 'value', e.target.value === '' ? '' : Number(e.target.value))}
                     />
                   </div>
                 ))}
@@ -150,19 +157,25 @@ export function EditWeeklyDialog() {
               <h3 className="text-sm font-medium text-muted-foreground">Volume Diário</h3>
               <div className="space-y-2">
                 {formData.dailyVolume.map((day, index) => (
-                  <div key={day.day} className="grid grid-cols-3 gap-2 items-center">
+                  <div key={day.day} className="grid grid-cols-4 gap-2 items-center">
                     <Label className="w-10">{day.day}</Label>
-                    <Input 
+                    <Input
                       placeholder="Abertos"
-                      type="number" 
-                      value={day.opened} 
-                      onChange={(e) => handleArrayChange('dailyVolume', index, 'opened', Number(e.target.value))} 
+                      type="number"
+                      value={day.opened || ''}
+                      onChange={(e) => handleArrayChange('dailyVolume', index, 'opened', e.target.value === '' ? '' : Number(e.target.value))}
                     />
-                    <Input 
+                    <Input
                       placeholder="Fechados"
-                      type="number" 
-                      value={day.closed} 
-                      onChange={(e) => handleArrayChange('dailyVolume', index, 'closed', Number(e.target.value))} 
+                      type="number"
+                      value={day.closed || ''}
+                      onChange={(e) => handleArrayChange('dailyVolume', index, 'closed', e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                    <Input
+                      placeholder="Pendentes"
+                      type="number"
+                      value={day.pending || ''}
+                      onChange={(e) => handleArrayChange('dailyVolume', index, 'pending', e.target.value === '' ? '' : Number(e.target.value))}
                     />
                   </div>
                 ))}

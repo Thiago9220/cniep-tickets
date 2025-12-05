@@ -5,13 +5,20 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MonthlyData, useData } from "@/contexts/DataContext";
 import { Edit } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function EditMonthlyDialog() {
   const { monthlyData, updateMonthlyData } = useData();
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<MonthlyData>(monthlyData);
+
+  // Atualiza formData quando monthlyData mudar ou quando o diálogo abrir
+  useEffect(() => {
+    if (open) {
+      setFormData(monthlyData);
+    }
+  }, [open, monthlyData]);
 
   const handleSave = () => {
     updateMonthlyData(formData);
@@ -27,7 +34,7 @@ export function EditMonthlyDialog() {
           ...prev,
           [section]: {
             ...sectionData,
-            [field]: value,
+            [field]: value === '' ? 0 : value,
           },
         };
       }
@@ -38,7 +45,7 @@ export function EditMonthlyDialog() {
   const handleArrayChange = (arrayName: 'volumeTrend' | 'byType' | 'byChannel', index: number, field: string, value: any) => {
     setFormData((prev) => {
       const newArray = [...prev[arrayName]];
-      newArray[index] = { ...newArray[index], [field]: value };
+      newArray[index] = { ...newArray[index], [field]: value === '' ? 0 : value };
       return { ...prev, [arrayName]: newArray };
     });
   };
@@ -78,35 +85,43 @@ export function EditMonthlyDialog() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Total Tickets</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.summary.totalTickets} 
-                    onChange={(e) => handleChange('summary', 'totalTickets', Number(e.target.value))} 
+                  <Input
+                    type="number"
+                    value={formData.summary.totalTickets || ''}
+                    onChange={(e) => handleChange('summary', 'totalTickets', e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Pendentes</Label>
+                  <Input
+                    type="number"
+                    value={formData.summary.pending || ''}
+                    onChange={(e) => handleChange('summary', 'pending', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>SLA Compliance (%)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.summary.slaCompliance} 
-                    onChange={(e) => handleChange('summary', 'slaCompliance', Number(e.target.value))} 
+                  <Input
+                    type="number"
+                    value={formData.summary.slaCompliance || ''}
+                    onChange={(e) => handleChange('summary', 'slaCompliance', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>FCR (%)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.summary.fcr} 
-                    onChange={(e) => handleChange('summary', 'fcr', Number(e.target.value))} 
+                  <Input
+                    type="number"
+                    value={formData.summary.fcr || ''}
+                    onChange={(e) => handleChange('summary', 'fcr', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Satisfação (1-5)</Label>
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     step="0.1"
-                    value={formData.summary.satisfaction} 
-                    onChange={(e) => handleChange('summary', 'satisfaction', Number(e.target.value))} 
+                    value={formData.summary.satisfaction || ''}
+                    onChange={(e) => handleChange('summary', 'satisfaction', e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -116,19 +131,25 @@ export function EditMonthlyDialog() {
               <h3 className="text-sm font-medium text-muted-foreground">Tendência Semanal</h3>
               <div className="space-y-2">
                 {formData.volumeTrend.map((week, index) => (
-                  <div key={week.week} className="grid grid-cols-3 gap-2 items-center">
+                  <div key={week.week} className="grid grid-cols-4 gap-2 items-center">
                     <Label className="w-20">{week.week}</Label>
-                    <Input 
+                    <Input
                       placeholder="Abertos"
-                      type="number" 
-                      value={week.opened} 
-                      onChange={(e) => handleArrayChange('volumeTrend', index, 'opened', Number(e.target.value))} 
+                      type="number"
+                      value={week.opened || ''}
+                      onChange={(e) => handleArrayChange('volumeTrend', index, 'opened', e.target.value === '' ? '' : Number(e.target.value))}
                     />
-                    <Input 
+                    <Input
                       placeholder="Fechados"
-                      type="number" 
-                      value={week.closed} 
-                      onChange={(e) => handleArrayChange('volumeTrend', index, 'closed', Number(e.target.value))} 
+                      type="number"
+                      value={week.closed || ''}
+                      onChange={(e) => handleArrayChange('volumeTrend', index, 'closed', e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                    <Input
+                      placeholder="Pendentes"
+                      type="number"
+                      value={week.pending || ''}
+                      onChange={(e) => handleArrayChange('volumeTrend', index, 'pending', e.target.value === '' ? '' : Number(e.target.value))}
                     />
                   </div>
                 ))}
@@ -141,10 +162,10 @@ export function EditMonthlyDialog() {
                 {formData.byType.map((item, index) => (
                   <div key={item.name} className="grid gap-2">
                     <Label>{item.name}</Label>
-                    <Input 
-                      type="number" 
-                      value={item.value} 
-                      onChange={(e) => handleArrayChange('byType', index, 'value', Number(e.target.value))} 
+                    <Input
+                      type="number"
+                      value={item.value || ''}
+                      onChange={(e) => handleArrayChange('byType', index, 'value', e.target.value === '' ? '' : Number(e.target.value))}
                     />
                   </div>
                 ))}
@@ -157,10 +178,10 @@ export function EditMonthlyDialog() {
                 {formData.byChannel.map((item, index) => (
                   <div key={item.name} className="grid gap-2">
                     <Label>{item.name}</Label>
-                    <Input 
-                      type="number" 
-                      value={item.value} 
-                      onChange={(e) => handleArrayChange('byChannel', index, 'value', Number(e.target.value))} 
+                    <Input
+                      type="number"
+                      value={item.value || ''}
+                      onChange={(e) => handleArrayChange('byChannel', index, 'value', e.target.value === '' ? '' : Number(e.target.value))}
                     />
                   </div>
                 ))}

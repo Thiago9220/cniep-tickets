@@ -129,7 +129,7 @@ export default function Home() {
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-                <a href="#" target="_blank">
+                <a href="https://teams.microsoft.com/l/meeting/new" target="_blank" rel="noopener noreferrer">
                   <Calendar className="h-5 w-5" />
                   Agendar Reunião
                 </a>
