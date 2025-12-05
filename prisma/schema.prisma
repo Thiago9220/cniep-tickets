@@ -11,11 +11,14 @@ datasource db {
 }
 
 model Ticket {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String?
-  status      String   @default("aberto")
-  priority    String   @default("media")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               Int       @id @default(autoincrement())
+  ticketNumber     Int?
+  title            String
+  description      String?
+  status           String    @default("aberto")
+  priority         String    @default("media")
+  url              String?
+  registrationDate DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
