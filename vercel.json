@@ -1,4 +1,4 @@
 {
   "version": 2,
-  "buildCommand": "pnpm prisma generate && pnpm build"
+  "buildCommand": "prisma generate && pnpm build"
 }
