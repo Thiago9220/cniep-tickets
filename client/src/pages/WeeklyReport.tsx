@@ -1,25 +1,91 @@
 import { SimpleBarChart, VolumeBarChart } from "@/components/Charts";
 import { EditWeeklyDialog } from "@/components/EditWeeklyDialog";
 import { KpiCard } from "@/components/KpiCard";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useData } from "@/contexts/DataContext";
-import { AlertTriangle, CheckCircle2, Clock, Download, Inbox } from "lucide-react";
+import { AlertTriangle, Calendar as CalendarIcon, CheckCircle2, Clock, Download, Inbox, RefreshCw } from "lucide-react";
+
+// Função para obter a chave da semana atual (duplicada para uso local)
+function getCurrentWeekKey(): string {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const days = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
+  const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+  return `${now.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+}
 
 export default function WeeklyReport() {
-  const { weeklyData } = useData();
+  const { weeklyData, selectedWeek, availableWeeks, setSelectedWeek, isLoading, isSyncing, syncWithDatabase } = useData();
+  const currentWeek = getCurrentWeekKey();
+  const isCurrentWeek = selectedWeek === currentWeek;
+
+  // Formata a chave da semana para exibição (ex: 2025-W49 -> Semana 49 de 2025)
+  const formatWeekLabel = (weekKey: string) => {
+    const [year, weekStr] = weekKey.split('-W');
+    return `Semana ${weekStr} de ${year}`;
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Carregando dados do relatório...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Relatório Semanal</h2>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-3xl font-bold tracking-tight">Relatório Semanal</h2>
+            {isCurrentWeek && (
+              <Badge variant="default" className="bg-green-600">
+                Semana Atual
+              </Badge>
+            )}
+            {isSyncing && (
+              <Badge variant="outline" className="gap-1">
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                Sincronizando
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">
             Período: {weeklyData.period}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+            <SelectTrigger className="w-[200px]">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableWeeks.map((week) => (
+                <SelectItem key={week} value={week}>
+                  {formatWeekLabel(week)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={syncWithDatabase}
+            disabled={isSyncing}
+            title="Sincronizar com banco de dados"
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          </Button>
           <EditWeeklyDialog />
           <Button variant="outline" onClick={() => window.print()}>
             <Download className="mr-2 h-4 w-4" />

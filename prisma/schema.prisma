@@ -22,3 +22,34 @@ model Ticket {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
+
+model WeeklyReport {
+  id        Int      @id @default(autoincrement())
+  weekKey   String   @unique // Formato: YYYY-WXX (ex: 2025-W49)
+  period    String   // Formato: DD/MM/YYYY até DD/MM/YYYY
+  data      Json     // Dados do relatório semanal em JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([weekKey])
+}
+
+model MonthlyReport {
+  id        Int      @id @default(autoincrement())
+  monthKey  String   @unique // Formato: YYYY-MM (ex: 2025-11)
+  data      Json     // Dados do relatório mensal em JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([monthKey])
+}
+
+model QuarterlyReport {
+  id          Int      @id @default(autoincrement())
+  quarterKey  String   @unique // Formato: YYYY-QX (ex: 2025-Q4)
+  data        Json     // Dados do relatório trimestral em JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([quarterKey])
+}
