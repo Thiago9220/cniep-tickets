@@ -106,3 +106,4 @@ temp/
 *.sqlite3
 
 /generated/prisma
+packages/generated/prisma
