@@ -19,7 +19,6 @@ function Router() {
         <Route path="/weekly" component={WeeklyReport} />
         <Route path="/monthly" component={MonthlyReport} />
         <Route path="/quarterly" component={QuarterlyReport} />
-        <Route path="/docs" component={() => <div className="p-4">Documentação em construção...</div>} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>
