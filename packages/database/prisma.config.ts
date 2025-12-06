@@ -12,7 +12,5 @@ export default defineConfig({
     // Torna opcional durante o build – o Prisma Client não precisa da URL
     // para gerar tipos. No runtime (funções serverless) a URL deve existir.
     url: env("POSTGRES_PRISMA_URL", { optional: true }),
-erless) a URL deve existir.
-    url: env("POSTGRES_PRISMA_URL", { optional: true }),
- optional: true }  },
+  },
 });

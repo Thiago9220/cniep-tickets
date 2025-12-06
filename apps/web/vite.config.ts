@@ -12,16 +12,15 @@ export default defineConfig({
   plugins,
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "@": path.resolve(import.meta.dirname, "src"),
+      "@shared": path.resolve(import.meta.dirname, "..", "..", "packages", "shared"),
+      "@db": path.resolve(import.meta.dirname, "..", "..", "packages", "database"),
     },
   },
   envDir: path.resolve(import.meta.dirname),
-  root: path.resolve(import.meta.dirname, "client"),
+  root: path.resolve(import.meta.dirname),
   build: {
-    // CORREÇÃO AQUI: Remova o "/public" do final
-    outDir: path.resolve(import.meta.dirname, "dist"), 
+    outDir: path.resolve(import.meta.dirname, "..", "..", "dist", "web"),
     emptyOutDir: true,
   },
   server: {

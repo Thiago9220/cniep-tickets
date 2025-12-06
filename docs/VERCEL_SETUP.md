@@ -1,157 +1,140 @@
-# Configuração do Vercel - Guia Passo a Passo
+# Setup do Vercel - Migração para Serverless
 
-## 1. Variáveis de Ambiente Obrigatórias
+Este projeto foi migrado de SQLite + Express para PostgreSQL + Vercel Serverless Functions.
 
-No **Vercel Dashboard** → **Settings** → **Environment Variables**, adicione:
+**IMPORTANTE**: Este projeto usa Prisma 7, que tem uma nova forma de configurar datasources através de `prisma.config.ts` e adaptadores de banco de dados.
 
-### Para Produção, Preview e Development:
+## Passo a Passo para Deploy no Vercel
 
-```
-POSTGRES_PRISMA_URL
-```
-Valor: O URL do Vercel Postgres com pooling
-Exemplo: `postgres://default:xxx@xxx-pooler.postgres.vercel-storage.com:5432/verceldb?pgbouncer=true`
+### 1. Criar Conta e Projeto no Vercel
 
-```
-POSTGRES_URL_NON_POOLING
-```
-Valor: O URL do Vercel Postgres sem pooling (para migrations)
-Exemplo: `postgres://default:xxx@xxx.postgres.vercel-storage.com:5432/verceldb`
+1. Acesse https://vercel.com e crie uma conta (pode usar GitHub)
+2. Conecte seu repositório GitHub ao Vercel
+3. Importe o projeto
 
-### Como obter esses valores:
+### 2. Adicionar Vercel Postgres
 
-1. No Vercel Dashboard, vá em **Storage**
-2. Clique no seu banco **Postgres**
-3. Na aba **Settings** ou **Quickstart**, copie:
-   - `POSTGRES_PRISMA_URL` (pooled connection)
-   - `POSTGRES_URL_NON_POOLING` (direct connection)
+1. No dashboard do Vercel, vá para seu projeto
+2. Clique na aba "Storage"
+3. Clique em "Create Database"
+4. Selecione "Postgres"
+5. Escolha um nome para o banco (ex: `cniep-tickets-db`)
+6. Clique em "Create"
 
-## 2. Configuração do Build
+### 3. Conectar Banco ao Projeto
 
-Verifique se o `vercel.json` tem:
+1. Após criar o banco, você verá uma lista de variáveis de ambiente
+2. O Vercel já adiciona automaticamente as variáveis necessárias:
+   - `POSTGRES_PRISMA_URL` (para queries com pooling)
+   - `POSTGRES_URL_NON_POOLING` (para migrações)
+3. Essas variáveis já estarão disponíveis para o projeto automaticamente
 
-```json
-{
-  "version": 2,
-  "buildCommand": "prisma generate && pnpm build"
-}
-```
+### 4. Deploy Inicial
 
-## 3. Aplicar Migrações
+1. Faça push do código para o GitHub:
+   ```bash
+   git add .
+   git commit -m "Migrate to Vercel serverless with Postgres"
+   git push
+   ```
 
-Após o deploy, você precisa aplicar as migrações manualmente **uma vez**:
+2. O Vercel vai automaticamente:
+   - Instalar as dependências
+   - Gerar o Prisma Client
+   - Buildar o frontend
+   - Configurar as funções serverless
 
-### Opção A: Via Vercel CLI
+### 5. Executar Migrações do Banco
 
-```bash
-# Instale a CLI do Vercel
-npm i -g vercel
+Após o primeiro deploy:
 
-# Faça login
-vercel login
+1. Instale a CLI do Vercel localmente:
+   ```bash
+   npm i -g vercel
+   ```
 
-# Link o projeto
-vercel link
+2. Faça login:
+   ```bash
+   vercel login
+   ```
 
-# Execute a migração
-vercel env pull .env.local
-pnpm prisma migrate deploy
-```
+3. Link o projeto local ao Vercel:
+   ```bash
+   vercel link
+   ```
 
-### Opção B: Via SQL direto no Vercel
+4. Baixe as variáveis de ambiente:
+   ```bash
+   vercel env pull .env
+   ```
 
-1. Vá em **Storage** → Seu **Postgres Database**
-2. Clique em **Query** ou **Data**
-3. Execute o SQL da migração manualmente:
+5. Execute as migrações:
+   ```bash
+   pnpm prisma db push
+   ```
 
-```sql
--- Copie e cole o conteúdo de:
--- prisma/migrations/20251206000000_add_report_models/migration.sql
-```
+### 6. Endpoints da API
 
-## 4. Verificar se está funcionando
+A API agora está disponível nos seguintes endpoints:
 
-Após deploy e migração:
+- `GET /api/hello` - Teste da API
+- `GET /api/tickets` - Listar todos os tickets
+- `POST /api/tickets` - Criar novo ticket
+- `GET /api/tickets/[id]` - Buscar ticket por ID
+- `PUT /api/tickets/[id]` - Atualizar ticket
+- `DELETE /api/tickets/[id]` - Deletar ticket
 
-1. Acesse sua aplicação no Vercel
-2. Vá para a página de **Relatório Semanal**
-3. Edite alguns dados
-4. Verifique se sincroniza (badge "Sincronizando" aparece)
-5. Limpe o localStorage e recarregue - dados devem vir do banco
+### 7. Desenvolvimento Local
 
-## 5. Troubleshooting
+Para desenvolver localmente com o banco PostgreSQL do Vercel:
 
-### Erro: "Missing required environment variable"
+1. Certifique-se de ter o arquivo `.env` com as variáveis do Vercel
+2. Execute:
+   ```bash
+   pnpm install
+   pnpm prisma generate
+   pnpm dev
+   ```
 
-**Solução:**
-- Verifique se adicionou `POSTGRES_PRISMA_URL` nas variáveis de ambiente
-- Certifique-se de marcar para: Production, Preview, Development
-- Faça um novo deploy após adicionar
+## Mudanças Realizadas
 
-### Erro: "Database does not exist"
+### Arquivos Criados
+- `api/_lib/prisma.ts` - Cliente Prisma otimizado para serverless com adapter pg
+- `api/hello.ts` - Endpoint de teste
+- `api/tickets/index.ts` - Endpoints GET e POST para tickets
+- `api/tickets/[id].ts` - Endpoints GET, PUT e DELETE para ticket individual
+- `prisma/prisma.config.ts` - Configuração do Prisma 7 com URLs de conexão
+- `.env.example` - Template para variáveis de ambiente
 
-**Solução:**
-- Execute `pnpm prisma migrate deploy` manualmente
-- Ou aplique o SQL da migração direto no banco
+### Arquivos Modificados
+- `prisma/schema.prisma` - Mudou de SQLite para PostgreSQL (Prisma 7 format)
+- `package.json` - Removeu dependências do Express e SQLite, adicionou @vercel/node, @prisma/adapter-pg e pg
+- `vercel.json` - Simplificado para build automático
 
-### Erro: "relation does not exist"
+### Arquivos que podem ser removidos
+- `server/` - Toda a pasta do Express (mantida para referência)
+- `server/db.ts` - Substituído por `api/_lib/prisma.ts`
+- `server/index.ts` - Substituído pelas funções serverless
 
-**Solução:**
-- As tabelas não foram criadas
-- Execute as migrações (veja passo 3)
+## Vantagens da Nova Arquitetura
 
-### API retorna 500
+1. **Escalabilidade Automática**: Vercel escala automaticamente com o tráfego
+2. **Banco Gerenciado**: PostgreSQL totalmente gerenciado pela Vercel
+3. **Deploy Contínuo**: Cada push para GitHub gera um novo deploy
+4. **Preview Deploys**: Cada PR gera um ambiente de preview
+5. **Edge Network**: CDN global para melhor performance
+6. **Zero Configuração**: Sem necessidade de configurar servidores
 
-**Solução:**
-- Verifique logs no Vercel Dashboard → Functions → Logs
-- Provavelmente falta migração ou variável de ambiente
+## Solução de Problemas
 
-## 6. Monitoramento
+### Build falha no Vercel
+- Verifique se as variáveis de ambiente estão configuradas
+- Cheque os logs de build no dashboard do Vercel
 
-### Ver logs das APIs:
+### Erro ao conectar ao banco
+- Confirme que o Postgres foi criado e conectado ao projeto
+- Verifique se as variáveis `POSTGRES_PRISMA_URL` e `POSTGRES_URL_NON_POOLING` existem
 
-1. Vercel Dashboard → **Functions**
-2. Clique em qualquer função (ex: `/api/reports/weekly`)
-3. Veja logs em tempo real
-
-### Ver dados no banco:
-
-1. Vercel Dashboard → **Storage** → Seu **Postgres**
-2. Clique em **Data** ou **Query**
-3. Execute queries para verificar:
-
-```sql
--- Ver relatórios salvos
-SELECT * FROM "WeeklyReport" ORDER BY "weekKey" DESC;
-
--- Contar relatórios
-SELECT COUNT(*) FROM "WeeklyReport";
-```
-
-## 7. Checklist de Deploy
-
-- [ ] Variáveis de ambiente configuradas no Vercel
-  - [ ] `POSTGRES_PRISMA_URL`
-  - [ ] `POSTGRES_URL_NON_POOLING`
-- [ ] Build command correto em `vercel.json`
-- [ ] Código commitado e pushed para Git
-- [ ] Deploy automático executado
-- [ ] Migrações aplicadas no banco
-- [ ] Teste funcional da aplicação
-- [ ] Sistema híbrido funcionando (localStorage + DB)
-
-## 8. Comandos Úteis
-
-```bash
-# Ver status do Prisma
-pnpm prisma db push --skip-generate
-
-# Gerar client localmente
-pnpm prisma generate
-
-# Ver schema atual
-pnpm prisma db pull
-
-# Reset database (cuidado!)
-pnpm prisma migrate reset
-```
+### API retorna erro 500
+- Verifique os logs de função no dashboard do Vercel
+- Confirme que as migrações foram executadas corretamente
