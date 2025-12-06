@@ -1,4 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "prisma generate && pnpm build"
+  "buildCommand": "prisma generate --schema=./packages/database/schema.prisma && pnpm build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "dist/web"
 }

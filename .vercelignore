@@ -1,0 +1,17 @@
+# Ignore files not needed for build
+node_modules
+.git
+.env.local
+.env*.local
+
+# Development files
+*.log
+.DS_Store
+
+# Old structure (already moved)
+client
+server
+api
+shared
+scripts
+prisma
