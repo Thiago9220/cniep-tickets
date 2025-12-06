@@ -9,6 +9,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("POSTGRES_PRISMA_URL"),
+    // Torna opcional durante o build - Prisma Client não precisa da URL para gerar tipos
+    url: env("POSTGRES_PRISMA_URL", { optional: true }),
   },
 });
