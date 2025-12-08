@@ -3,16 +3,23 @@ import express from "express";
 import prisma from "./db";
 
 const app = express();
+const router = express.Router();
 
 app.use(cors());
 app.use(express.json());
 
-app.get("/api/hello", (_req, res) => {
+// Log middleware para debug
+app.use((req, _res, next) => {
+  console.log(`[API] ${req.method} ${req.url}`);
+  next();
+});
+
+router.get("/hello", (_req, res) => {
   res.json({ message: "API funcionando" });
 });
 
 // Listar todos os tickets
-app.get("/api/tickets", async (_req, res) => {
+router.get("/tickets", async (_req, res) => {
   try {
     const tickets = await prisma.ticket.findMany({
       orderBy: { createdAt: "desc" },
@@ -25,7 +32,7 @@ app.get("/api/tickets", async (_req, res) => {
 });
 
 // Buscar um ticket por ID
-app.get("/api/tickets/:id", async (req, res) => {
+router.get("/tickets/:id", async (req, res) => {
   try {
     const ticket = await prisma.ticket.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -40,7 +47,7 @@ app.get("/api/tickets/:id", async (req, res) => {
 });
 
 // Criar um novo ticket
-app.post("/api/tickets", async (req, res) => {
+router.post("/tickets", async (req, res) => {
   try {
     const { title, description, status, priority } = req.body;
     const ticket = await prisma.ticket.create({
@@ -53,7 +60,7 @@ app.post("/api/tickets", async (req, res) => {
 });
 
 // Atualizar um ticket
-app.put("/api/tickets/:id", async (req, res) => {
+router.put("/tickets/:id", async (req, res) => {
   try {
     const { title, description, status, priority } = req.body;
     const ticket = await prisma.ticket.update({
@@ -67,7 +74,7 @@ app.put("/api/tickets/:id", async (req, res) => {
 });
 
 // Deletar um ticket
-app.delete("/api/tickets/:id", async (req, res) => {
+router.delete("/tickets/:id", async (req, res) => {
   try {
     await prisma.ticket.delete({
       where: { id: parseInt(req.params.id) },
@@ -81,7 +88,7 @@ app.delete("/api/tickets/:id", async (req, res) => {
 // ============== RELATÓRIOS SEMANAIS ==============
 
 // Listar todos os relatórios semanais
-app.get("/api/reports/weekly", async (_req, res) => {
+router.get("/reports/weekly", async (_req, res) => {
   try {
     const reports = await prisma.weeklyReport.findMany({
       orderBy: { weekKey: "desc" },
@@ -94,7 +101,7 @@ app.get("/api/reports/weekly", async (_req, res) => {
 });
 
 // Buscar relatório semanal por weekKey
-app.get("/api/reports/weekly/:weekKey", async (req, res) => {
+router.get("/reports/weekly/:weekKey", async (req, res) => {
   try {
     const report = await prisma.weeklyReport.findUnique({
       where: { weekKey: req.params.weekKey },
@@ -110,7 +117,7 @@ app.get("/api/reports/weekly/:weekKey", async (req, res) => {
 });
 
 // Criar ou atualizar relatório semanal
-app.post("/api/reports/weekly", async (req, res) => {
+router.post("/reports/weekly", async (req, res) => {
   try {
     const { weekKey, period, data } = req.body;
     if (!weekKey || !period || !data) {
@@ -129,7 +136,7 @@ app.post("/api/reports/weekly", async (req, res) => {
 });
 
 // Deletar relatório semanal
-app.delete("/api/reports/weekly/:weekKey", async (req, res) => {
+router.delete("/reports/weekly/:weekKey", async (req, res) => {
   try {
     await prisma.weeklyReport.delete({
       where: { weekKey: req.params.weekKey },
@@ -144,7 +151,7 @@ app.delete("/api/reports/weekly/:weekKey", async (req, res) => {
 // ============== RELATÓRIOS MENSAIS ==============
 
 // Listar todos os relatórios mensais
-app.get("/api/reports/monthly", async (_req, res) => {
+router.get("/reports/monthly", async (_req, res) => {
   try {
     const reports = await prisma.monthlyReport.findMany({
       orderBy: { monthKey: "desc" },
@@ -157,7 +164,7 @@ app.get("/api/reports/monthly", async (_req, res) => {
 });
 
 // Criar ou atualizar relatório mensal
-app.post("/api/reports/monthly", async (req, res) => {
+router.post("/reports/monthly", async (req, res) => {
   try {
     const { monthKey, data } = req.body;
     if (!monthKey || !data) {
@@ -178,7 +185,7 @@ app.post("/api/reports/monthly", async (req, res) => {
 // ============== RELATÓRIOS TRIMESTRAIS ==============
 
 // Listar todos os relatórios trimestrais
-app.get("/api/reports/quarterly", async (_req, res) => {
+router.get("/reports/quarterly", async (_req, res) => {
   try {
     const reports = await prisma.quarterlyReport.findMany({
       orderBy: { quarterKey: "desc" },
@@ -191,7 +198,7 @@ app.get("/api/reports/quarterly", async (_req, res) => {
 });
 
 // Criar ou atualizar relatório trimestral
-app.post("/api/reports/quarterly", async (req, res) => {
+router.post("/reports/quarterly", async (req, res) => {
   try {
     const { quarterKey, data } = req.body;
     if (!quarterKey || !data) {
@@ -208,6 +215,10 @@ app.post("/api/reports/quarterly", async (req, res) => {
     res.status(500).json({ error: "Erro ao salvar relatório trimestral" });
   }
 });
+
+// Mount router on /api AND / to handle Vercel rewrites or direct access
+app.use("/api", router);
+app.use("/", router);
 
 if (process.env.NODE_ENV !== "production") {
   const port = 5000;

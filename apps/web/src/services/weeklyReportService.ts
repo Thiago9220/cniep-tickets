@@ -39,6 +39,14 @@ class WeeklyReportService {
   async fetchAllReports(): Promise<WeeklyReportResponse[]> {
     try {
       const response = await fetch(`${API_BASE_URL}/reports/weekly`);
+      
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error('Resposta não-JSON da API (fetchAllReports):', text.substring(0, 200));
+        throw new Error('API retornou formato inválido');
+      }
+
       if (!response.ok) {
         throw new Error('Erro ao buscar relatórios');
       }
@@ -55,6 +63,14 @@ class WeeklyReportService {
   async fetchReportByWeek(weekKey: string): Promise<WeeklyReportResponse | null> {
     try {
       const response = await fetch(`${API_BASE_URL}/reports/weekly/${weekKey}`);
+      
+      const contentType = response.headers.get("content-type");
+      if (response.status !== 404 && (!contentType || !contentType.includes("application/json"))) {
+        const text = await response.text();
+        console.error('Resposta não-JSON da API (fetchReportByWeek):', text.substring(0, 200));
+        throw new Error('API retornou formato inválido');
+      }
+
       if (!response.ok) {
         if (response.status === 404) {
           return null;
@@ -93,6 +109,13 @@ class WeeklyReportService {
           data,
         }),
       });
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error('Resposta não-JSON da API (saveReport):', text.substring(0, 200));
+        throw new Error('API retornou formato inválido');
+      }
 
       if (!response.ok) {
         throw new Error('Erro ao salvar relatório');
