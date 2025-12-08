@@ -24,13 +24,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const NavContent = () => (
     <div className="flex flex-col h-full py-4">
       <div className="px-6 mb-6">
-        <h1 className="text-xl font-bold text-primary flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-            CN
-          </div>
-          CNIEP Gestão
-        </h1>
-        <p className="text-xs text-muted-foreground mt-1">Painel de Gestão de Tickets</p>
+        <div className="flex items-center gap-3">
+          <img src="/logo-cniep.png" alt="CNIEP" className="h-10 w-auto" />
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">Painel de Gestão de Tickets</p>
       </div>
       <ScrollArea className="flex-1 px-4">
         <nav className="space-y-2">
@@ -73,12 +70,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center px-4 justify-between">
-        <div className="flex items-center gap-2 font-bold text-lg">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-sm">
-            CN
-          </div>
-          CNIEP
-        </div>
+        <img src="/logo-cniep.png" alt="CNIEP" className="h-8 w-auto" />
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon">
