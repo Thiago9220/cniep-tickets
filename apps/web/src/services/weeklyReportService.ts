@@ -76,6 +76,11 @@ class WeeklyReportService {
     period: string,
     data: WeeklyReportData
   ): Promise<WeeklyReportResponse | null> {
+    if (!weekKey || !period || !data) {
+      console.error('Parâmetros inválidos para saveReport:', { weekKey, period, data });
+      return null;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/reports/weekly`, {
         method: 'POST',
@@ -149,6 +154,10 @@ class WeeklyReportService {
       // Salva dados locais que não estão no banco
       for (const weekKey of localOnlyWeeks) {
         const data = localStore[weekKey];
+        if (!data || !data.period) {
+          console.warn(`Dados inválidos no localStorage para semana ${weekKey}, ignorando sync.`);
+          continue;
+        }
         await this.saveReport(weekKey, data.period, data);
       }
 
