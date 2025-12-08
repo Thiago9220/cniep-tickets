@@ -65,7 +65,7 @@ export default function WeeklyReport() {
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-[220px]">
               <CalendarIcon className="mr-2 h-4 w-4" />
               <SelectValue />
             </SelectTrigger>
