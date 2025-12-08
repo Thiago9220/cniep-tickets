@@ -27,7 +27,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex items-center gap-3">
           <img src="/logo-cniep.png" alt="CNIEP" className="h-10 w-auto" />
         </div>
-        <p className="text-xs text-muted-foreground mt-2">Painel de Gestão de Tickets</p>
+        <p className="text-xs text-muted-foreground mt-2">Painel de Métricas</p>
       </div>
       <ScrollArea className="flex-1 px-4">
         <nav className="space-y-2">
