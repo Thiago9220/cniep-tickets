@@ -1,7 +1,20 @@
-import { PrismaClient } from "../generated/prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaClient } from "../../packages/generated/prisma/client.ts";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 
-const adapter = new PrismaBetterSqlite3({ url: "file:./dev.db" });
+// Usa a connection string do Vercel/PostgreSQL
+const connectionString =
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.warn("⚠️  Nenhuma connection string do PostgreSQL encontrada!");
+  console.warn("   Configure POSTGRES_URL no arquivo .env");
+}
+
+const pool = new pg.Pool({ connectionString });
+const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({ adapter });
 
