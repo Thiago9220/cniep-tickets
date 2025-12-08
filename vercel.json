@@ -5,34 +5,6 @@
   "outputDirectory": "dist/web",
   "rewrites": [
     {
-      "source": "/api/reports/weekly/:weekKey",
-      "destination": "/apps/api/reports/weekly/[weekKey].ts"
-    },
-    {
-      "source": "/api/reports/weekly",
-      "destination": "/apps/api/reports/weekly/index.ts"
-    },
-    {
-      "source": "/api/reports/monthly",
-      "destination": "/apps/api/reports/monthly/index.ts"
-    },
-    {
-      "source": "/api/reports/quarterly",
-      "destination": "/apps/api/reports/quarterly/index.ts"
-    },
-    {
-      "source": "/api/tickets/:id",
-      "destination": "/apps/api/tickets/[id].ts"
-    },
-    {
-      "source": "/api/tickets",
-      "destination": "/apps/api/tickets/index.ts"
-    },
-    {
-      "source": "/api/hello",
-      "destination": "/apps/api/hello.ts"
-    },
-    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
