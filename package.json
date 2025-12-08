@@ -7,7 +7,7 @@
     "dev": "pnpm --filter @cniep/web dev",
     "dev:api": "pnpm --filter @cniep/api dev",
     "dev:all": "pnpm --parallel dev",
-    "build": "pnpm --filter @cniep/web build",
+    "build": "prisma generate --schema=./packages/database/schema.prisma && pnpm --filter @cniep/web build",
     "build:api": "pnpm --filter @cniep/api build",
     "preview": "pnpm --filter @cniep/web preview",
     "check": "pnpm --recursive run check",
