@@ -3,11 +3,6 @@
   "buildCommand": "prisma generate --schema=./packages/database/schema.prisma && pnpm build",
   "installCommand": "pnpm install",
   "outputDirectory": "dist/web",
-  "functions": {
-    "apps/api/**/*.ts": {
-      "runtime": "@vercel/node@3"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/reports/weekly/:weekKey",
