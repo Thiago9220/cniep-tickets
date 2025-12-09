@@ -11,6 +11,7 @@ import Home from "./pages/Home";
 import MonthlyReport from "./pages/MonthlyReport";
 import QuarterlyReport from "./pages/QuarterlyReport";
 import WeeklyReport from "./pages/WeeklyReport";
+import Guide from "./pages/Guide";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
         <Route path="/weekly" component={WeeklyReport} />
         <Route path="/monthly" component={MonthlyReport} />
         <Route path="/quarterly" component={QuarterlyReport} />
+        <Route path="/guide" component={Guide} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>
