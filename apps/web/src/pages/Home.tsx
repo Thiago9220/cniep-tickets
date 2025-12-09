@@ -10,6 +10,7 @@ import { NewTicketDialog } from "@/components/NewTicketDialog";
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [stats, setStats] = useState<TicketStats | null>(null);
 
   useEffect(() => {
@@ -17,6 +18,72 @@ export default function Home() {
       .then(setStats)
       .catch((err) => console.error("Falha ao checar status da API", err));
   }, []);
+
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      const tickets = await ticketsApi.getAll();
+
+      if (tickets.length === 0) {
+        toast.error("Nenhum ticket para exportar");
+        return;
+      }
+
+      // Cabeçalhos do CSV
+      const headers = [
+        "ID",
+        "Número",
+        "Título",
+        "Descrição",
+        "Status",
+        "Prioridade",
+        "Tipo",
+        "URL",
+        "Data Abertura",
+        "Criado Em",
+        "Atualizado Em"
+      ];
+
+      // Converter tickets para linhas CSV
+      const rows = tickets.map(ticket => [
+        ticket.id,
+        ticket.ticketNumber || "",
+        `"${(ticket.title || "").replace(/"/g, '""')}"`,
+        `"${(ticket.description || "").replace(/"/g, '""')}"`,
+        ticket.status,
+        ticket.priority,
+        ticket.type,
+        ticket.url || "",
+        ticket.registrationDate ? new Date(ticket.registrationDate).toLocaleDateString("pt-BR") : "",
+        new Date(ticket.createdAt).toLocaleDateString("pt-BR"),
+        new Date(ticket.updatedAt).toLocaleDateString("pt-BR")
+      ]);
+
+      // Montar CSV
+      const csvContent = [
+        headers.join(";"),
+        ...rows.map(row => row.join(";"))
+      ].join("\n");
+
+      // Criar blob e fazer download
+      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `tickets_${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`${tickets.length} tickets exportados com sucesso!`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao exportar tickets");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -243,11 +310,14 @@ export default function Home() {
                   Agendar Reunião
                 </a>
               </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-                <a href="#" target="_blank">
-                  <BarChart3 className="h-5 w-5" />
-                  Extrair CSV Bruto
-                </a>
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2"
+                onClick={handleExportCSV}
+                disabled={isExporting}
+              >
+                <Download className="h-5 w-5" />
+                {isExporting ? "Exportando..." : "Extrair CSV Bruto"}
               </Button>
             </div>
           </CardContent>
