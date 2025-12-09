@@ -6,6 +6,10 @@
   "exports": {
     ".": "./index.ts",
     "./const": "./const.ts",
-    "./utils": "./utils.ts"
+    "./utils": "./utils.ts",
+    "./import-excel": "./import-excel.ts"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
   }
 }

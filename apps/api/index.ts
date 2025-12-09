@@ -1,9 +1,12 @@
 import cors from "cors";
 import express from "express";
+import multer from "multer";
 import prisma from "./db";
+import { processExcelBuffer } from "@cniep/shared/import-excel";
 
 const app = express();
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(cors());
 app.use(express.json());
@@ -16,6 +19,21 @@ app.use((req, _res, next) => {
 
 router.get("/hello", (_req, res) => {
   res.json({ message: "API funcionando" });
+});
+
+// Importar Excel
+router.post("/tickets/import", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhum arquivo enviado" });
+    }
+
+    const stats = await processExcelBuffer(req.file.buffer, prisma);
+    res.json(stats);
+  } catch (error: any) {
+    console.error("Erro ao importar Excel:", error);
+    res.status(500).json({ error: "Erro ao processar arquivo Excel: " + error.message });
+  }
 });
 
 // Listar todos os tickets

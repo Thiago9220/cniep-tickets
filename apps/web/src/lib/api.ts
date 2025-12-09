@@ -82,6 +82,17 @@ export const ticketsApi = {
     const response = await api.get<AvailablePeriods>("/tickets/stats/available-periods");
     return response.data;
   },
+
+  importExcel: async (file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await api.post("/tickets/import", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  },
 };
 
 // Tipos para estatísticas de período

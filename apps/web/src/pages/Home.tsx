@@ -1,11 +1,59 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, BarChart3, Calendar, PieChart, TicketIcon } from "lucide-react";
+import { ArrowRight, BarChart3, Calendar, PieChart, TicketIcon, Upload } from "lucide-react";
 import { Link } from "wouter";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { ticketsApi } from "@/lib/api";
 
 export default function Home() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const toastId = toast.loading("Importando arquivo...", {
+      description: "Processando dados do Excel...",
+    });
+
+    try {
+      const stats = await ticketsApi.importExcel(file);
+      toast.success("Importação concluída!", {
+        id: toastId,
+        description: `${stats.imported} criados, ${stats.updated} atualizados, ${stats.skipped} ignorados.`,
+        duration: 5000,
+      });
+      // Limpar o input para permitir selecionar o mesmo arquivo novamente se necessário
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro na importação", {
+        id: toastId,
+        description: "Verifique o formato do arquivo e tente novamente.",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        accept=".xlsx,.xls"
+      />
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Painel de Gestão Integrada</h1>
         <p className="text-lg text-muted-foreground">
@@ -32,8 +80,23 @@ export default function Home() {
             <p className="text-sm text-muted-foreground mb-4">
               Visualize métricas e gráficos dos chamados importados do Excel.
             </p>
-            <div className="flex items-center gap-2 text-sm font-medium text-orange-600">
-              Ver dashboard <ArrowRight className="h-3 w-3" />
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleImportClick();
+                }}
+                disabled={isImporting}
+              >
+                {isImporting ? "Importando..." : "Importar Excel"}
+                {!isImporting && <Upload className="ml-2 h-3 w-3" />}
+              </Button>
+              <Link href="/dashboard" className="flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 px-3 py-2">
+                Dashboard <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </CardContent>
         </Card>
