@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
+import { AIChatAssistant } from "@/components/AIChatAssistant";
+import { useMemo } from "react";
 
 const respostasPadrao = [
   {
@@ -211,6 +213,12 @@ export default function Guide() {
     toast.success("Texto copiado para a área de transferência!");
   };
 
+  const contextData = useMemo(() => {
+    return respostasPadrao
+      .map((r) => `## ${r.titulo}\n${r.texto}`)
+      .join("\n\n---\n\n");
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -220,38 +228,42 @@ export default function Guide() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Respostas Padrões</CardTitle>
-          <CardDescription>
-            Respostas prontas para situações comuns. Copie e cole conforme necessário.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            {respostasPadrao.map((resposta) => (
-              <AccordionItem key={resposta.id} value={resposta.id}>
-                <AccordionTrigger>{resposta.titulo}</AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-muted rounded-md text-sm relative group">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleCopy(resposta.texto)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <p className="whitespace-pre-line pr-10">{resposta.texto}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <AIChatAssistant contextData={contextData} />
+
+        <Card className="h-[600px] flex flex-col">
+          <CardHeader className="flex-shrink-0">
+            <CardTitle>Respostas Padrões</CardTitle>
+            <CardDescription>
+              Respostas prontas para situações comuns. Copie e cole conforme necessário.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-auto">
+            <Accordion type="single" collapsible className="w-full">
+              {respostasPadrao.map((resposta) => (
+                <AccordionItem key={resposta.id} value={resposta.id}>
+                  <AccordionTrigger className="text-left">{resposta.titulo}</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-muted rounded-md text-sm relative group">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleCopy(resposta.texto)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <p className="whitespace-pre-line pr-10">{resposta.texto}</p>
+                      </div>
                     </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </CardContent>
-      </Card>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
