@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, BarChart3, Calendar, PieChart, TicketIcon, Upload } from "lucide-react";
+import { ArrowRight, BarChart3, Calendar, Download, PieChart, TicketIcon, Upload } from "lucide-react";
 import { Link } from "wouter";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ticketsApi, type TicketStats } from "@/lib/api";
+import { NewTicketDialog } from "@/components/NewTicketDialog";
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,13 +88,14 @@ export default function Home() {
             <p className="text-sm text-muted-foreground mb-4">
               Visualize métricas e gráficos dos chamados importados do Excel.
             </p>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+            <div className="flex gap-2 flex-wrap relative z-20">
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700"
                 onClick={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleImportClick();
                 }}
                 disabled={isImporting}
@@ -101,6 +103,9 @@ export default function Home() {
                 {isImporting ? "Importando..." : "Importar Excel"}
                 {!isImporting && <Upload className="ml-2 h-3 w-3" />}
               </Button>
+              <NewTicketDialog onTicketCreated={() => {
+                ticketsApi.getStats().then(setStats);
+              }} />
               <Link href="/dashboard" className="flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 px-3 py-2">
                 Dashboard <ArrowRight className="h-3 w-3" />
               </Link>

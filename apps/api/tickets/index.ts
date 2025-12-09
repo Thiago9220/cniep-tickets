@@ -19,9 +19,23 @@ export default async function handler(
   } else if (req.method === "POST") {
     // Criar um novo ticket
     try {
-      const { title, description, status, priority } = req.body;
+      const { title, description, status, priority, type, url, ticketNumber, registrationDate } = req.body;
+
+      if (!title) {
+        return res.status(400).json({ error: "Título é obrigatório" });
+      }
+
       const ticket = await prisma.ticket.create({
-        data: { title, description, status, priority },
+        data: {
+          title,
+          description,
+          status: status || "aberto",
+          priority: priority || "media",
+          type: type || "outros",
+          url,
+          ticketNumber: ticketNumber ? parseInt(ticketNumber, 10) : null,
+          registrationDate: registrationDate ? new Date(registrationDate) : new Date(),
+        },
       });
       return res.status(201).json(ticket);
     } catch (error) {
