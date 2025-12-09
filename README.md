@@ -80,7 +80,7 @@ Documentação completa disponível em `/docs`:
 - [Como Rodar](./docs/COMO_RODAR.md)
 - [Sistema Híbrido](./docs/SISTEMA_HIBRIDO.md)
 - [Setup Vercel](./docs/VERCEL_SETUP.md)
-- [Deploy Vercel - Monorepo](./docs/DEPLOY_VERCEL.md) ⭐ **Novo!**
+- [Deploy Vercel - Monorepo](./docs/DEPLOY_VERCEL.md) 
 
 ## Tecnologias
 
