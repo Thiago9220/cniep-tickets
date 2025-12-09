@@ -2,13 +2,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, BarChart3, Calendar, PieChart, TicketIcon, Upload } from "lucide-react";
 import { Link } from "wouter";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { ticketsApi } from "@/lib/api";
+import { ticketsApi, type TicketStats } from "@/lib/api";
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [stats, setStats] = useState<TicketStats | null>(null);
+
+  useEffect(() => {
+    ticketsApi.getStats()
+      .then(setStats)
+      .catch((err) => console.error("Falha ao checar status da API", err));
+  }, []);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -177,31 +184,42 @@ export default function Home() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Status dos Sistemas</CardTitle>
-            <CardDescription>Monitoramento em tempo real</CardDescription>
+            <CardTitle>Status da Plataforma</CardTitle>
+            <CardDescription>Saúde do sistema interno</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {/* API Status */}
               <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                  <span className="font-medium">GLPI (Service Desk)</span>
+                  <div className={`w-3 h-3 rounded-full ${stats ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+                  <span className="font-medium">API Backend</span>
                 </div>
-                <span className="text-sm text-green-600 font-medium">Operacional</span>
+                <span className={`text-sm font-medium ${stats ? "text-green-600" : "text-red-600"}`}>
+                  {stats ? "Operacional" : "Indisponível"}
+                </span>
               </div>
+
+              {/* Database Status */}
               <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                  <span className="font-medium">JIRA (Projetos)</span>
+                  <div className={`w-3 h-3 rounded-full ${stats ? "bg-green-500" : "bg-red-500"}`} />
+                  <span className="font-medium">Banco de Dados</span>
                 </div>
-                <span className="text-sm text-green-600 font-medium">Operacional</span>
+                <span className={`text-sm font-medium ${stats ? "text-green-600" : "text-red-600"}`}>
+                  {stats ? "Conectado" : "Erro de Conexão"}
+                </span>
               </div>
+
+              {/* Data Volume */}
               <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <span className="font-medium">Portal do Usuário</span>
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span className="font-medium">Base de Conhecimento</span>
                 </div>
-                <span className="text-sm text-yellow-600 font-medium">Lentidão Intermitente</span>
+                <span className="text-sm text-blue-600 font-medium">
+                  {stats ? `${stats.total} chamados` : "..."}
+                </span>
               </div>
             </div>
           </CardContent>
