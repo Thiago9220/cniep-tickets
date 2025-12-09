@@ -1,4 +1,4 @@
-climport type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { prisma } from "../../_lib/prisma";
 
 export default async function handler(
