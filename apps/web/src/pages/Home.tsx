@@ -29,6 +29,17 @@ export default function Home() {
         return;
       }
 
+      // Função para escapar campos CSV corretamente
+      const escapeCSV = (value: string | number | null | undefined): string => {
+        if (value === null || value === undefined) return "";
+        const str = String(value);
+        // Se contém aspas, ponto-e-vírgula, ou quebra de linha, precisa de escape
+        if (str.includes('"') || str.includes(';') || str.includes('\n') || str.includes('\r')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
       // Cabeçalhos do CSV
       const headers = [
         "ID",
@@ -46,17 +57,17 @@ export default function Home() {
 
       // Converter tickets para linhas CSV
       const rows = tickets.map(ticket => [
-        ticket.id,
-        ticket.ticketNumber || "",
-        `"${(ticket.title || "").replace(/"/g, '""')}"`,
-        `"${(ticket.description || "").replace(/"/g, '""')}"`,
-        ticket.status,
-        ticket.priority,
-        ticket.type,
-        ticket.url || "",
-        ticket.registrationDate ? new Date(ticket.registrationDate).toLocaleDateString("pt-BR") : "",
-        new Date(ticket.createdAt).toLocaleDateString("pt-BR"),
-        new Date(ticket.updatedAt).toLocaleDateString("pt-BR")
+        escapeCSV(ticket.id),
+        escapeCSV(ticket.ticketNumber),
+        escapeCSV(ticket.title),
+        escapeCSV(ticket.description),
+        escapeCSV(ticket.status),
+        escapeCSV(ticket.priority),
+        escapeCSV(ticket.type),
+        escapeCSV(ticket.url),
+        escapeCSV(ticket.registrationDate ? new Date(ticket.registrationDate).toLocaleDateString("pt-BR") : ""),
+        escapeCSV(new Date(ticket.createdAt).toLocaleDateString("pt-BR")),
+        escapeCSV(new Date(ticket.updatedAt).toLocaleDateString("pt-BR"))
       ]);
 
       // Montar CSV
