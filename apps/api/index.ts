@@ -49,9 +49,18 @@ router.get("/tickets/:id", async (req, res) => {
 // Criar um novo ticket
 router.post("/tickets", async (req, res) => {
   try {
-    const { title, description, status, priority } = req.body;
+    const { title, description, status, priority, type, url, ticketNumber, registrationDate } = req.body;
     const ticket = await prisma.ticket.create({
-      data: { title, description, status, priority },
+      data: {
+        title,
+        description,
+        status,
+        priority,
+        type,
+        url,
+        ticketNumber,
+        registrationDate: registrationDate ? new Date(registrationDate) : null
+      },
     });
     res.status(201).json(ticket);
   } catch (error) {
@@ -62,10 +71,19 @@ router.post("/tickets", async (req, res) => {
 // Atualizar um ticket
 router.put("/tickets/:id", async (req, res) => {
   try {
-    const { title, description, status, priority } = req.body;
+    const { title, description, status, priority, type, url, ticketNumber, registrationDate } = req.body;
     const ticket = await prisma.ticket.update({
       where: { id: parseInt(req.params.id) },
-      data: { title, description, status, priority },
+      data: {
+        title,
+        description,
+        status,
+        priority,
+        type,
+        url,
+        ticketNumber,
+        registrationDate: registrationDate ? new Date(registrationDate) : undefined
+      },
     });
     res.json(ticket);
   } catch (error) {
@@ -82,6 +100,110 @@ router.delete("/tickets/:id", async (req, res) => {
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: "Erro ao deletar ticket" });
+  }
+});
+
+// ============== MÉTRICAS/ESTATÍSTICAS ==============
+
+// Estatísticas gerais dos tickets
+router.get("/tickets/stats/overview", async (_req, res) => {
+  try {
+    const total = await prisma.ticket.count();
+    const pendentes = await prisma.ticket.count({ where: { status: "pendente" } });
+    const abertos = await prisma.ticket.count({ where: { status: "aberto" } });
+    const fechados = await prisma.ticket.count({ where: { status: "fechado" } });
+
+    const byStatus = await prisma.ticket.groupBy({
+      by: ["status"],
+      _count: { status: true },
+    });
+
+    const byType = await prisma.ticket.groupBy({
+      by: ["type"],
+      _count: { type: true },
+    });
+
+    const byPriority = await prisma.ticket.groupBy({
+      by: ["priority"],
+      _count: { priority: true },
+    });
+
+    res.json({
+      total,
+      pendentes,
+      abertos,
+      fechados,
+      taxaResolucao: total > 0 ? ((fechados / total) * 100).toFixed(1) : 0,
+      byStatus: Object.fromEntries(byStatus.map((s) => [s.status, s._count.status])),
+      byType: Object.fromEntries(byType.map((t) => [t.type, t._count.type])),
+      byPriority: Object.fromEntries(byPriority.map((p) => [p.priority, p._count.priority])),
+    });
+  } catch (error) {
+    console.error("Erro ao buscar estatísticas:", error);
+    res.status(500).json({ error: "Erro ao buscar estatísticas" });
+  }
+});
+
+// Tickets por mês (para gráfico de evolução)
+router.get("/tickets/stats/monthly", async (_req, res) => {
+  try {
+    const tickets = await prisma.ticket.findMany({
+      select: {
+        registrationDate: true,
+        status: true,
+        type: true,
+        priority: true,
+      },
+      where: {
+        registrationDate: { not: null },
+      },
+      orderBy: { registrationDate: "asc" },
+    });
+
+    // Agrupar por mês
+    const byMonth: Record<string, { total: number; fechados: number; pendentes: number }> = {};
+
+    tickets.forEach((ticket) => {
+      if (ticket.registrationDate) {
+        const monthKey = ticket.registrationDate.toISOString().slice(0, 7); // YYYY-MM
+        if (!byMonth[monthKey]) {
+          byMonth[monthKey] = { total: 0, fechados: 0, pendentes: 0 };
+        }
+        byMonth[monthKey].total++;
+        if (ticket.status === "fechado") byMonth[monthKey].fechados++;
+        if (ticket.status === "pendente") byMonth[monthKey].pendentes++;
+      }
+    });
+
+    const monthlyData = Object.entries(byMonth)
+      .map(([month, data]) => ({
+        month,
+        ...data,
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    res.json(monthlyData);
+  } catch (error) {
+    console.error("Erro ao buscar estatísticas mensais:", error);
+    res.status(500).json({ error: "Erro ao buscar estatísticas mensais" });
+  }
+});
+
+// Tickets pendentes de alta prioridade
+router.get("/tickets/stats/critical", async (_req, res) => {
+  try {
+    const criticalTickets = await prisma.ticket.findMany({
+      where: {
+        status: "pendente",
+        priority: "alta",
+      },
+      orderBy: { registrationDate: "desc" },
+    });
+
+    res.json(criticalTickets);
+  } catch (error) {
+    console.error("Erro ao buscar tickets críticos:", error);
+    res.status(500).json({ error: "Erro ao buscar tickets críticos" });
   }
 });
 

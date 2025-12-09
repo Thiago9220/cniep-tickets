@@ -11,15 +11,21 @@ datasource db {
 
 model Ticket {
   id               Int       @id @default(autoincrement())
-  ticketNumber     Int?
+  ticketNumber     Int?      @unique
   title            String
   description      String?
   status           String    @default("aberto")
   priority         String    @default("media")
+  type             String    @default("outros") // orientacao, correcao_tecnica, erro_temporario, duvida_negocial, melhorias, outros
   url              String?
   registrationDate DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([type])
+  @@index([registrationDate])
 }
 
 model WeeklyReport {

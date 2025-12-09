@@ -1,7 +1,6 @@
-import { KpiCard } from "@/components/KpiCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, BarChart3, Calendar, PieChart } from "lucide-react";
+import { ArrowRight, BarChart3, Calendar, PieChart, TicketIcon } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
@@ -14,7 +13,31 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer group relative overflow-hidden border-l-4 border-l-orange-500">
+          <Link href="/dashboard">
+            <div className="absolute inset-0 z-10" />
+          </Link>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <TicketIcon className="h-5 w-5 text-orange-500" />
+                Dashboard GLPI
+              </CardTitle>
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+            </div>
+            <CardDescription>Chamados Importados</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Visualize métricas e gráficos dos chamados importados do Excel.
+            </p>
+            <div className="flex items-center gap-2 text-sm font-medium text-orange-600">
+              Ver dashboard <ArrowRight className="h-3 w-3" />
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="hover:shadow-lg transition-shadow cursor-pointer group relative overflow-hidden border-l-4 border-l-blue-500">
           <Link href="/weekly">
             <div className="absolute inset-0 z-10" />

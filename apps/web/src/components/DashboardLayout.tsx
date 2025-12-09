@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { BarChart3, Calendar, LayoutDashboard, Menu, PieChart } from "lucide-react";
+import { BarChart3, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
@@ -16,6 +16,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navItems = [
     { name: "Visão Geral", href: "/", icon: LayoutDashboard },
+    { name: "Dashboard Chamados", href: "/dashboard", icon: TicketIcon },
     { name: "Relatório Semanal", href: "/weekly", icon: Calendar },
     { name: "Relatório Mensal", href: "/monthly", icon: BarChart3 },
     { name: "Relatório Trimestral", href: "/quarterly", icon: PieChart },

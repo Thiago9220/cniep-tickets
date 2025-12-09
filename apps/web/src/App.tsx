@@ -6,6 +6,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { DataProvider } from "./contexts/DataContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import MonthlyReport from "./pages/MonthlyReport";
 import QuarterlyReport from "./pages/QuarterlyReport";
@@ -16,6 +17,7 @@ function Router() {
     <DashboardLayout>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/dashboard" component={Dashboard} />
         <Route path="/weekly" component={WeeklyReport} />
         <Route path="/monthly" component={MonthlyReport} />
         <Route path="/quarterly" component={QuarterlyReport} />
