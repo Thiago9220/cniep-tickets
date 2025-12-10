@@ -81,22 +81,36 @@ export async function processExcelBuffer(buffer: Buffer, prisma: PrismaClient): 
   const worksheet = workbook.Sheets[sheetName];
   const data: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet);
 
-  // Filtrar linhas vazias
-  const validData = data.filter((row) => row["Número do Chamado"]);
-
-  console.log(`📊 Encontradas ${validData.length} linhas válidas no Excel`);
+  console.log(`📊 Total de linhas encontradas no Excel (excluindo cabeçalho): ${data.length}`);
 
   let imported = 0;
   let updated = 0;
   let skipped = 0;
+  const seenTicketNumbers = new Set<number>();
 
-  for (const row of validData) {
+  for (const [index, row] of data.entries()) {
+    const rowNum = index + 2; // +1 header, +1 zero-based index
     try {
-      const ticketNumber = row["Número do Chamado"];
-      if (!ticketNumber) {
+      const rawTicketNumber = row["Número do Chamado"];
+      
+      if (rawTicketNumber === undefined || rawTicketNumber === null || rawTicketNumber === "") {
         skipped++;
         continue;
       }
+
+      const ticketNumber = Number(rawTicketNumber);
+
+      if (isNaN(ticketNumber) || ticketNumber === 0) { // Consider 0 also invalid for ticket numbers
+        skipped++;
+        continue;
+      }
+
+      if (seenTicketNumbers.has(ticketNumber)) {
+        skipped++;
+        console.warn(`⚠️  Linha ${rowNum}: Chamado #${ticketNumber} duplicado no arquivo. Ignorando.`);
+        continue;
+      }
+      seenTicketNumbers.add(ticketNumber);
 
       const ticketData = {
         ticketNumber: ticketNumber,
@@ -109,7 +123,6 @@ export async function processExcelBuffer(buffer: Buffer, prisma: PrismaClient): 
         registrationDate: parseExcelDate(row["Data de Registro"]),
       };
 
-      // Usar upsert para atualizar se já existir ou criar se não existir
       const result = await prisma.ticket.upsert({
         where: { ticketNumber: ticketNumber },
         update: ticketData,
@@ -123,7 +136,7 @@ export async function processExcelBuffer(buffer: Buffer, prisma: PrismaClient): 
       }
     } catch (error: any) {
       skipped++;
-      console.log(`⚠️  Erro ao importar linha:`, error.message);
+      console.log(`⚠️  Erro ao importar linha ${rowNum}:`, error.message);
     }
   }
 
@@ -136,7 +149,7 @@ export async function processExcelBuffer(buffer: Buffer, prisma: PrismaClient): 
     imported,
     updated,
     skipped,
-    totalProcessed: validData.length
+    totalProcessed: data.length
   };
 }
 
