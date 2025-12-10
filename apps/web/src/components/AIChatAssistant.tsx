@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Bot, Copy, Send, Settings, User, X, Loader2, AlertCircle } from "lucide-react";
+import { Bot, Copy, Send, Settings, User, X, Loader2, AlertCircle, FileText, Trash2, Plus } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -16,12 +16,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+}
+
+interface Manual {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  createdAt: string;
 }
 
 interface AIChatAssistantProps {
@@ -52,6 +61,12 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("gemini_api_key") || "");
   const [tempApiKey, setTempApiKey] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [manuais, setManuais] = useState<Manual[]>(() => {
+    const saved = localStorage.getItem("cniep_manuais");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [novoManualTitulo, setNovoManualTitulo] = useState("");
+  const [novoManualConteudo, setNovoManualConteudo] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -73,6 +88,48 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
     setApiKey("");
     setTempApiKey("");
     toast.success("Chave API removida!");
+  };
+
+  const adicionarManual = () => {
+    if (!novoManualTitulo.trim() || !novoManualConteudo.trim()) {
+      toast.error("Preencha o título e o conteúdo do manual!");
+      return;
+    }
+
+    const novoManual: Manual = {
+      id: crypto.randomUUID(),
+      titulo: novoManualTitulo.trim(),
+      conteudo: novoManualConteudo.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const novosManuais = [...manuais, novoManual];
+    setManuais(novosManuais);
+    localStorage.setItem("cniep_manuais", JSON.stringify(novosManuais));
+    setNovoManualTitulo("");
+    setNovoManualConteudo("");
+    toast.success(`Manual "${novoManual.titulo}" adicionado com sucesso!`);
+  };
+
+  const removerManual = (id: string) => {
+    const manual = manuais.find((m) => m.id === id);
+    const novosManuais = manuais.filter((m) => m.id !== id);
+    setManuais(novosManuais);
+    localStorage.setItem("cniep_manuais", JSON.stringify(novosManuais));
+    toast.success(`Manual "${manual?.titulo}" removido!`);
+  };
+
+  const limparTodosManuais = () => {
+    setManuais([]);
+    localStorage.removeItem("cniep_manuais");
+    toast.success("Todos os manuais foram removidos!");
+  };
+
+  const getManuaisContext = () => {
+    if (manuais.length === 0) return "";
+    return manuais
+      .map((m) => `### ${m.titulo}\n${m.conteudo}`)
+      .join("\n\n---\n\n");
   };
 
   const sendMessage = useCallback(async () => {
@@ -100,7 +157,12 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
         .map((m) => `${m.role === "user" ? "Usuário" : "Assistente"}: ${m.content}`)
         .join("\n\n");
 
-      const fullPrompt = `${SYSTEM_PROMPT}${contextData}
+      const manuaisContext = getManuaisContext();
+      const fullContext = manuaisContext
+        ? `${contextData}\n\n---\n\n## Manuais e Documentação Adicional:\n${manuaisContext}`
+        : contextData;
+
+      const fullPrompt = `${SYSTEM_PROMPT}${fullContext}
 
 Histórico da conversa:
 ${conversationHistory}
@@ -160,7 +222,7 @@ Assistente:`;
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, apiKey, messages, contextData]);
+  }, [input, isLoading, apiKey, messages, contextData, manuais]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -198,59 +260,167 @@ Assistente:`;
                 <Button
                   variant="ghost"
                   size="icon"
-                  title="Configurar API"
+                  title="Configurações"
                   className={cn(!apiKey && "text-amber-500")}
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Configurar Chave API</DialogTitle>
+                  <DialogTitle>Configurações do Assistente</DialogTitle>
                   <DialogDescription>
-                    Insira sua chave API do Google Gemini para usar o assistente.
-                    A chave é armazenada apenas no seu navegador.
+                    Configure a API e adicione conteúdo de manuais para o assistente.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="api-key">Chave API do Gemini</Label>
-                    <Input
-                      id="api-key"
-                      type="password"
-                      placeholder="AIza..."
-                      value={tempApiKey}
-                      onChange={(e) => setTempApiKey(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Obtenha sua chave em{" "}
-                      <a
-                        href="https://aistudio.google.com/apikey"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        Google AI Studio
-                      </a>
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={saveApiKey} disabled={!tempApiKey.trim()}>
-                      Salvar
-                    </Button>
-                    {apiKey && (
-                      <Button variant="destructive" onClick={clearApiKey}>
-                        Remover Chave
+                <Tabs defaultValue="api" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="api" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      API
+                    </TabsTrigger>
+                    <TabsTrigger value="manuais" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Manuais
+                      {manuais.length > 0 && (
+                        <span className="text-xs bg-primary text-primary-foreground rounded-full px-1.5">
+                          {manuais.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="api" className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="api-key">Chave API do Gemini</Label>
+                      <Input
+                        id="api-key"
+                        type="password"
+                        placeholder="AIza..."
+                        value={tempApiKey}
+                        onChange={(e) => setTempApiKey(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Obtenha sua chave em{" "}
+                        <a
+                          href="https://aistudio.google.com/apikey"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Google AI Studio
+                        </a>
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={saveApiKey} disabled={!tempApiKey.trim()}>
+                        Salvar
                       </Button>
+                      {apiKey && (
+                        <Button variant="destructive" onClick={clearApiKey}>
+                          Remover Chave
+                        </Button>
+                      )}
+                    </div>
+                    {apiKey && (
+                      <p className="text-sm text-green-600 flex items-center gap-1">
+                        <span className="h-2 w-2 bg-green-500 rounded-full" />
+                        Chave API configurada
+                      </p>
                     )}
-                  </div>
-                  {apiKey && (
-                    <p className="text-sm text-green-600 flex items-center gap-1">
-                      <span className="h-2 w-2 bg-green-500 rounded-full" />
-                      Chave API configurada
-                    </p>
-                  )}
-                </div>
+                  </TabsContent>
+
+                  <TabsContent value="manuais" className="space-y-4 py-4">
+                    {/* Formulário para adicionar novo manual */}
+                    <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                      <div className="space-y-2">
+                        <Label htmlFor="manual-titulo">Título do Manual</Label>
+                        <Input
+                          id="manual-titulo"
+                          placeholder="Ex: Manual do CNIEP2, Resolução 593/2024..."
+                          value={novoManualTitulo}
+                          onChange={(e) => setNovoManualTitulo(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="manual-conteudo">Conteúdo</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Abra o PDF/Word, selecione todo o texto (Ctrl+A) e cole aqui (Ctrl+V).
+                        </p>
+                        <Textarea
+                          id="manual-conteudo"
+                          placeholder="Cole aqui o conteúdo do manual..."
+                          value={novoManualConteudo}
+                          onChange={(e) => setNovoManualConteudo(e.target.value)}
+                          className="h-[120px] font-mono text-xs resize-none"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {novoManualConteudo.length.toLocaleString()} caracteres
+                        </p>
+                      </div>
+                      <Button
+                        onClick={adicionarManual}
+                        disabled={!novoManualTitulo.trim() || !novoManualConteudo.trim()}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar Manual
+                      </Button>
+                    </div>
+
+                    {/* Lista de manuais salvos */}
+                    {manuais.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label>Manuais Salvos ({manuais.length})</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={limparTodosManuais}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Limpar todos
+                          </Button>
+                        </div>
+                        <ScrollArea className="h-[150px]">
+                          <div className="space-y-2 pr-4">
+                            {manuais.map((manual) => (
+                              <div
+                                key={manual.id}
+                                className="flex items-center justify-between p-3 border rounded-md bg-background"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{manual.titulo}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {manual.conteudo.length.toLocaleString()} caracteres
+                                  </p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removerManual(manual.id)}
+                                  className="h-8 w-8 text-destructive hover:text-destructive flex-shrink-0"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                        <p className="text-xs text-muted-foreground text-center">
+                          Total: {manuais.reduce((acc, m) => acc + m.conteudo.length, 0).toLocaleString()} caracteres
+                        </p>
+                      </div>
+                    )}
+
+                    {manuais.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Nenhum manual adicionado ainda.
+                      </p>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </DialogContent>
             </Dialog>
           </div>
@@ -271,20 +441,20 @@ Assistente:`;
           </div>
         )}
 
-        <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+        <ScrollArea className="flex-1 pr-4 overflow-hidden" ref={scrollRef}>
           <div className="space-y-4">
             {messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">
-                  Olá! Sou o assistente do CNIEP. Posso ajudar com:
+                <p className="text-sm font-medium">
+                  Olá! Sou o chatbot do CNIEP.
                 </p>
-                <ul className="text-xs mt-2 space-y-1">
-                  <li>Dúvidas sobre procedimentos de atendimento</li>
-                  <li>Sugestões de respostas padrão</li>
-                  <li>Esclarecimentos sobre o sistema CNIEP2</li>
-                  <li>Orientações sobre a Resolução CNJ nº 593/2024</li>
-                </ul>
+                <p className="text-xs mt-2">
+                  Estou aqui para ajudar a equipe de suporte com dúvidas sobre o sistema CNIEP2 e procedimentos de atendimento.
+                </p>
+                <p className="text-xs mt-3 text-muted-foreground/70">
+                  Digite sua pergunta abaixo para começar.
+                </p>
               </div>
             ) : (
               messages.map((message) => (
@@ -302,13 +472,19 @@ Assistente:`;
                   )}
                   <div
                     className={cn(
-                      "rounded-lg px-4 py-2 max-w-[85%] group relative",
+                      "rounded-lg px-4 py-2 max-w-[85%] group relative overflow-hidden",
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted"
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    {message.role === "assistant" ? (
+                      <div className="text-sm prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden">
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap break-words overflow-hidden">{message.content}</p>
+                    )}
                     {message.role === "assistant" && (
                       <Button
                         variant="ghost"
