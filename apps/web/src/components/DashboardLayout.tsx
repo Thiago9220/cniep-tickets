@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useLembretesCount } from "@/hooks/useLembretes";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const lembretesCount = useLembretesCount();
 
   const navItems = [
     { name: "Visão Geral", href: "/", icon: LayoutDashboard },
@@ -21,7 +23,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Relatório Mensal", href: "/monthly", icon: BarChart3 },
     { name: "Relatório Trimestral", href: "/quarterly", icon: PieChart },
     { name: "Guia de Atendimento", href: "/guide", icon: BookText },
-    { name: "Lembretes", href: "/reminders", icon: Bell },
+    { name: "Lembretes", href: "/reminders", icon: Bell, badge: lembretesCount.atrasados > 0 ? lembretesCount.atrasados : (lembretesCount.urgentes > 0 ? lembretesCount.urgentes : lembretesCount.pendentes), badgeColor: lembretesCount.atrasados > 0 ? "bg-red-500" : (lembretesCount.urgentes > 0 ? "bg-red-500" : "bg-orange-500") },
   ];
 
   const NavContent = () => (
@@ -39,13 +41,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Button
                 variant={location === item.href ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-start gap-3",
+                  "w-full justify-start gap-3 relative",
                   location === item.href && "bg-secondary text-secondary-foreground font-medium"
                 )}
                 onClick={() => setIsMobileOpen(false)}
               >
                 <item.icon className="h-4 w-4" />
                 {item.name}
+                {"badge" in item && item.badge > 0 && (
+                  <span className={cn(
+                    "absolute right-2 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center",
+                    item.badgeColor
+                  )}>
+                    {item.badge}
+                  </span>
+                )}
               </Button>
             </Link>
           ))}

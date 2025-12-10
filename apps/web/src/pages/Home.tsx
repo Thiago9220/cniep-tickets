@@ -1,17 +1,23 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, BarChart3, Calendar, Download, PieChart, TicketIcon, Upload } from "lucide-react";
+import { ArrowRight, BarChart3, Calendar, Download, PieChart, TicketIcon, Upload, AlertTriangle, Bell, Clock, X } from "lucide-react";
 import { Link } from "wouter";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ticketsApi, type TicketStats } from "@/lib/api";
 import { NewTicketDialog } from "@/components/NewTicketDialog";
+import { useLembretesCount } from "@/hooks/useLembretes";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [stats, setStats] = useState<TicketStats | null>(null);
+  const [alertaFechado, setAlertaFechado] = useState(false);
+  const lembretesCount = useLembretesCount();
+
+  const temAlerta = lembretesCount.atrasados > 0 || lembretesCount.urgentes > 0;
 
   useEffect(() => {
     ticketsApi.getStats()
@@ -140,6 +146,81 @@ export default function Home() {
         className="hidden"
         accept=".xlsx,.xls"
       />
+
+      {/* Alerta de Lembretes */}
+      {temAlerta && !alertaFechado && (
+        <div className={cn(
+          "relative rounded-lg border p-4 shadow-sm animate-in slide-in-from-top-2 duration-300",
+          lembretesCount.atrasados > 0
+            ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900"
+            : "bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-900"
+        )}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-2 h-6 w-6 text-muted-foreground hover:text-foreground"
+            onClick={() => setAlertaFechado(true)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+          <div className="flex items-start gap-4">
+            <div className={cn(
+              "rounded-full p-2",
+              lembretesCount.atrasados > 0
+                ? "bg-red-100 dark:bg-red-900/50"
+                : "bg-orange-100 dark:bg-orange-900/50"
+            )}>
+              {lembretesCount.atrasados > 0 ? (
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              ) : (
+                <Bell className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h3 className={cn(
+                "font-semibold",
+                lembretesCount.atrasados > 0
+                  ? "text-red-800 dark:text-red-200"
+                  : "text-orange-800 dark:text-orange-200"
+              )}>
+                {lembretesCount.atrasados > 0
+                  ? "Atenção: Você tem tarefas atrasadas!"
+                  : "Você tem tarefas urgentes pendentes"}
+              </h3>
+              <div className="mt-1 flex flex-wrap gap-3 text-sm">
+                {lembretesCount.atrasados > 0 && (
+                  <span className="flex items-center gap-1 text-red-700 dark:text-red-300">
+                    <Clock className="h-4 w-4" />
+                    {lembretesCount.atrasados} {lembretesCount.atrasados === 1 ? "tarefa atrasada" : "tarefas atrasadas"}
+                  </span>
+                )}
+                {lembretesCount.urgentes > 0 && (
+                  <span className="flex items-center gap-1 text-orange-700 dark:text-orange-300">
+                    <AlertTriangle className="h-4 w-4" />
+                    {lembretesCount.urgentes} {lembretesCount.urgentes === 1 ? "tarefa urgente" : "tarefas urgentes"}
+                  </span>
+                )}
+              </div>
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  variant={lembretesCount.atrasados > 0 ? "destructive" : "default"}
+                  className={cn(
+                    lembretesCount.atrasados === 0 && "bg-orange-600 hover:bg-orange-700"
+                  )}
+                  asChild
+                >
+                  <Link href="/lembretes">
+                    <Bell className="h-4 w-4 mr-2" />
+                    Ver Lembretes
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Painel de Gestão Integrada</h1>
         <p className="text-lg text-muted-foreground">
