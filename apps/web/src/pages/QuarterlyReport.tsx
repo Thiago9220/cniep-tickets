@@ -3,11 +3,65 @@ import { EditQuarterlyDialog } from "@/components/EditQuarterlyDialog";
 import { KpiCard } from "@/components/KpiCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useData } from "@/contexts/DataContext";
-import { ArrowRight, Bug, CheckSquare, Download, GitMerge, Lightbulb } from "lucide-react";
+import { ticketsApi, type QuarterlyStatsResponse } from "@/lib/api";
+import { ArrowRight, Bug, CheckSquare, Download, GitMerge, Lightbulb, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+
+// Função para obter o trimestre atual
+function getCurrentQuarter(): string {
+  const now = new Date();
+  const quarter = Math.ceil((now.getMonth() + 1) / 3);
+  return `${now.getFullYear()}-Q${quarter}`;
+}
 
 export default function QuarterlyReport() {
   const { quarterlyData } = useData();
+  const [selectedQuarter, setSelectedQuarter] = useState<string>(getCurrentQuarter());
+  const [availableQuarters, setAvailableQuarters] = useState<string[]>([]);
+  const [quarterlyStats, setQuarterlyStats] = useState<QuarterlyStatsResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Buscar trimestres disponíveis
+  useEffect(() => {
+    const fetchQuarters = async () => {
+      try {
+        const { quarters } = await ticketsApi.getAvailableQuarters();
+        setAvailableQuarters(quarters);
+        // Se o trimestre atual não tem dados, selecionar o mais recente disponível
+        if (quarters.length > 0 && !quarters.includes(selectedQuarter)) {
+          setSelectedQuarter(quarters[0]);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar trimestres:", error);
+      }
+    };
+    fetchQuarters();
+  }, []);
+
+  // Buscar estatísticas do trimestre selecionado
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!selectedQuarter) return;
+      setIsLoading(true);
+      try {
+        const stats = await ticketsApi.getQuarterlyStats(selectedQuarter);
+        setQuarterlyStats(stats);
+      } catch (error) {
+        console.error("Erro ao buscar estatísticas trimestrais:", error);
+        setQuarterlyStats(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, [selectedQuarter]);
+
+  // Dados de causa raiz (da API ou fallback para dados locais)
+  const rootCauseData = quarterlyStats?.rootCause || quarterlyData.rootCause;
+  const analysisText = quarterlyStats?.analysis || "A maior parte dos incidentes ainda é causada por bugs de software, justificando o foco da equipe de desenvolvimento em correções de estabilidade no próximo ciclo.";
+  const periodLabel = quarterlyStats?.period || quarterlyData.period;
 
   return (
     <div className="space-y-8">
@@ -15,10 +69,22 @@ export default function QuarterlyReport() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Relatório Trimestral</h2>
           <p className="text-muted-foreground">
-            Período: {quarterlyData.period} | Foco: Estratégia e Desenvolvimento
+            Período: {periodLabel} | Foco: Estratégia e Desenvolvimento
           </p>
         </div>
         <div className="flex gap-2">
+          <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Trimestre" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableQuarters.map((q) => (
+                <SelectItem key={q} value={q}>
+                  {q.replace("-", " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <EditQuarterlyDialog />
           <Button variant="outline" onClick={() => window.print()}>
             <Download className="mr-2 h-4 w-4" />
@@ -60,28 +126,41 @@ export default function QuarterlyReport() {
             <CardTitle>Análise de Causa Raiz</CardTitle>
             <CardDescription>
               Origem primária dos incidentes no trimestre
+              {quarterlyStats && (
+                <span className="ml-2 text-xs text-green-600">
+                  (Dados reais: {quarterlyStats.summary.total} tickets)
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {quarterlyData.rootCause.map((item) => (
-                <div key={item.name}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">{item.name}</span>
-                    <span className="text-sm text-muted-foreground">{item.value}%</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary" 
-                      style={{ width: `${item.value}%` }}
-                    />
-                  </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-6">
+                  {rootCauseData.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">{item.name}</span>
+                        <span className="text-sm text-muted-foreground">{item.value}%</span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary"
+                          style={{ width: `${item.value}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="mt-6 p-4 bg-muted rounded-lg text-sm">
-              <strong>Análise:</strong> A maior parte dos incidentes ainda é causada por bugs de software, justificando o foco da equipe de desenvolvimento em correções de estabilidade no próximo ciclo.
-            </div>
+                <div className="mt-6 p-4 bg-muted rounded-lg text-sm">
+                  <strong>Análise:</strong> {analysisText}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
         

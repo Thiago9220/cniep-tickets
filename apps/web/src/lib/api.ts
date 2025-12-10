@@ -83,6 +83,17 @@ export const ticketsApi = {
     return response.data;
   },
 
+  // Estatísticas trimestrais
+  getQuarterlyStats: async (quarterKey: string): Promise<QuarterlyStatsResponse> => {
+    const response = await api.get<QuarterlyStatsResponse>(`/tickets/stats/quarterly/${quarterKey}`);
+    return response.data;
+  },
+
+  getAvailableQuarters: async (): Promise<AvailableQuarters> => {
+    const response = await api.get<AvailableQuarters>("/tickets/stats/available-quarters");
+    return response.data;
+  },
+
   importExcel: async (file: File): Promise<any> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -137,4 +148,30 @@ export interface MonthStatsResponse {
 export interface AvailablePeriods {
   weeks: string[];
   months: string[];
+}
+
+export interface RootCauseItem {
+  name: string;
+  value: number;
+  count: number;
+}
+
+export interface QuarterlyStatsResponse {
+  quarterKey: string;
+  period: string;
+  periodDates: string;
+  summary: {
+    total: number;
+    fechados: number;
+    pendentes: number;
+    taxaResolucao: string;
+    variacao: string;
+  };
+  byType: Record<string, number>;
+  rootCause: RootCauseItem[];
+  analysis: string;
+}
+
+export interface AvailableQuarters {
+  quarters: string[];
 }

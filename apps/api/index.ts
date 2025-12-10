@@ -562,6 +562,161 @@ router.post("/reports/monthly", async (req, res) => {
   }
 });
 
+// ============== ESTATÍSTICAS TRIMESTRAIS ==============
+
+// Mapeamento de tipos de ticket para categorias de causa raiz
+const ROOT_CAUSE_MAPPING: Record<string, string> = {
+  correcao_tecnica: "Software (Bug)",
+  melhorias: "Software (Bug)",
+  erro_temporario: "Infraestrutura",
+  orientacao: "Usuário (Treinamento)",
+  duvida_negocial: "Usuário (Treinamento)",
+  outros: "Acesso/Permissão",
+};
+
+// Estatísticas de um trimestre específico (YYYY-QX)
+router.get("/tickets/stats/quarterly/:quarterKey", async (req, res) => {
+  try {
+    const { quarterKey } = req.params;
+    const match = quarterKey.match(/^(\d{4})-Q([1-4])$/);
+
+    if (!match) {
+      return res.status(400).json({ error: "Formato inválido. Use YYYY-QX (ex: 2025-Q4)" });
+    }
+
+    const year = parseInt(match[1]);
+    const quarter = parseInt(match[2]);
+
+    // Calcular início e fim do trimestre
+    const quarterStartMonth = (quarter - 1) * 3;
+    const quarterStart = new Date(year, quarterStartMonth, 1);
+    const quarterEnd = new Date(year, quarterStartMonth + 3, 0, 23, 59, 59, 999);
+
+    const tickets = await prisma.ticket.findMany({
+      where: {
+        registrationDate: {
+          gte: quarterStart,
+          lte: quarterEnd,
+        },
+      },
+    });
+
+    // Calcular métricas gerais
+    const total = tickets.length;
+    const fechados = tickets.filter((t) => t.status === "fechado").length;
+    const pendentes = tickets.filter((t) => t.status === "pendente").length;
+
+    // Agrupar por tipo
+    const byType: Record<string, number> = {};
+    tickets.forEach((t) => {
+      byType[t.type] = (byType[t.type] || 0) + 1;
+    });
+
+    // Calcular causa raiz baseado no mapeamento
+    const rootCauseCounts: Record<string, number> = {};
+    tickets.forEach((t) => {
+      const rootCause = ROOT_CAUSE_MAPPING[t.type] || "Outros";
+      rootCauseCounts[rootCause] = (rootCauseCounts[rootCause] || 0) + 1;
+    });
+
+    // Converter para percentuais
+    const rootCause = Object.entries(rootCauseCounts)
+      .map(([name, count]) => ({
+        name,
+        value: total > 0 ? Math.round((count / total) * 100) : 0,
+        count,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    // Garantir que a soma seja 100%
+    if (rootCause.length > 0 && total > 0) {
+      const sumPercent = rootCause.reduce((sum, item) => sum + item.value, 0);
+      if (sumPercent !== 100) {
+        rootCause[0].value += 100 - sumPercent;
+      }
+    }
+
+    // Buscar trimestre anterior para comparação
+    const prevQuarterStart = new Date(year, quarterStartMonth - 3, 1);
+    const prevQuarterEnd = new Date(year, quarterStartMonth, 0, 23, 59, 59, 999);
+    const prevQuarterTickets = await prisma.ticket.count({
+      where: {
+        registrationDate: {
+          gte: prevQuarterStart,
+          lte: prevQuarterEnd,
+        },
+      },
+    });
+
+    // Determinar a principal causa raiz para análise textual
+    const topCause = rootCause[0];
+    let analysisText = "";
+    if (topCause) {
+      if (topCause.name === "Software (Bug)") {
+        analysisText = `A maior parte dos incidentes (${topCause.value}%) é causada por bugs de software, justificando o foco da equipe de desenvolvimento em correções de estabilidade no próximo ciclo.`;
+      } else if (topCause.name === "Infraestrutura") {
+        analysisText = `Problemas de infraestrutura representam ${topCause.value}% dos incidentes, indicando necessidade de investimento em estabilidade do ambiente.`;
+      } else if (topCause.name === "Usuário (Treinamento)") {
+        analysisText = `${topCause.value}% dos chamados são relacionados a dúvidas e orientações, sugerindo oportunidade de investir em treinamento e documentação.`;
+      } else {
+        analysisText = `${topCause.name} representa ${topCause.value}% dos incidentes no trimestre.`;
+      }
+    }
+
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const periodLabel = `Q${quarter} ${year} (${monthNames[quarterStartMonth]}-${monthNames[quarterStartMonth + 2]})`;
+
+    res.json({
+      quarterKey,
+      period: periodLabel,
+      periodDates: `${quarterStart.toLocaleDateString("pt-BR")} a ${quarterEnd.toLocaleDateString("pt-BR")}`,
+      summary: {
+        total,
+        fechados,
+        pendentes,
+        taxaResolucao: total > 0 ? ((fechados / total) * 100).toFixed(1) : "0",
+        variacao: prevQuarterTickets > 0
+          ? (((total - prevQuarterTickets) / prevQuarterTickets) * 100).toFixed(1)
+          : "0",
+      },
+      byType,
+      rootCause,
+      analysis: analysisText,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar estatísticas trimestrais:", error);
+    res.status(500).json({ error: "Erro ao buscar estatísticas trimestrais" });
+  }
+});
+
+// Listar trimestres disponíveis
+router.get("/tickets/stats/available-quarters", async (_req, res) => {
+  try {
+    const tickets = await prisma.ticket.findMany({
+      select: { registrationDate: true },
+      where: { registrationDate: { not: null } },
+      orderBy: { registrationDate: "desc" },
+    });
+
+    const quarters = new Set<string>();
+
+    tickets.forEach((t) => {
+      if (t.registrationDate) {
+        const year = t.registrationDate.getFullYear();
+        const quarter = Math.ceil((t.registrationDate.getMonth() + 1) / 3);
+        quarters.add(`${year}-Q${quarter}`);
+      }
+    });
+
+    res.json({
+      quarters: Array.from(quarters).sort().reverse(),
+    });
+  } catch (error) {
+    console.error("Erro ao buscar trimestres disponíveis:", error);
+    res.status(500).json({ error: "Erro ao buscar trimestres disponíveis" });
+  }
+});
+
 // ============== RELATÓRIOS TRIMESTRAIS ==============
 
 // Listar todos os relatórios trimestrais
