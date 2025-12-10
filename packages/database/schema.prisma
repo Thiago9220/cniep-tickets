@@ -58,3 +58,14 @@ model QuarterlyReport {
 
   @@index([quarterKey])
 }
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  title     String
+  filename  String
+  fileType  String
+  size      Int
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

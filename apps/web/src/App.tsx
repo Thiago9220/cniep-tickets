@@ -13,6 +13,7 @@ import QuarterlyReport from "./pages/QuarterlyReport";
 import WeeklyReport from "./pages/WeeklyReport";
 import Guide from "./pages/Guide";
 import Reminders from "./pages/Reminders";
+import Documentation from "./pages/Documentation";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
         <Route path="/quarterly" component={QuarterlyReport} />
         <Route path="/guide" component={Guide} />
         <Route path="/reminders" component={Reminders} />
+        <Route path="/docs" component={Documentation} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

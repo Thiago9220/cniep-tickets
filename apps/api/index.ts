@@ -3,10 +3,35 @@ import express from "express";
 import multer from "multer";
 import prisma from "./db";
 import { processExcelBuffer } from "@cniep/shared/import-excel";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOADS_DIR = path.join(__dirname, "uploads");
+
+// Ensure uploads dir exists
+if (!fs.existsSync(UPLOADS_DIR)){
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
 
 const app = express();
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, UPLOADS_DIR)
+  },
+  filename: function (req, file, cb) {
+    // Save with timestamp to avoid collisions
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, uniqueSuffix + '-' + file.originalname)
+  }
+})
+
+const uploadDocs = multer({ storage: storage });
 
 app.use(cors());
 app.use(express.json());
@@ -19,6 +44,102 @@ app.use((req, _res, next) => {
 
 router.get("/hello", (_req, res) => {
   res.json({ message: "API funcionando" });
+});
+
+// ============== DOCUMENTOS ==============
+
+// Upload de documento
+router.post("/documents", uploadDocs.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhum arquivo enviado" });
+    }
+
+    const { originalname, filename, size, mimetype } = req.file;
+    // URL relative to the API, assuming we serve static files or have a download route
+    // For now, we store the internal filename and serve via download route
+    
+    const document = await prisma.document.create({
+      data: {
+        title: originalname, // Default title is filename
+        filename: filename,
+        fileType: mimetype,
+        size: size,
+        url: `/api/documents/download/${filename}` // Virtual URL
+      }
+    });
+
+    res.status(201).json(document);
+  } catch (error) {
+    console.error("Erro ao fazer upload de documento:", error);
+    res.status(500).json({ error: "Erro ao salvar documento" });
+  }
+});
+
+// Listar documentos
+router.get("/documents", async (_req, res) => {
+  try {
+    const documents = await prisma.document.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(documents);
+  } catch (error) {
+    console.error("Erro ao listar documentos:", error);
+    res.status(500).json({ error: "Erro ao listar documentos" });
+  }
+});
+
+// Download de documento
+router.get("/documents/:id/download", async (req, res) => {
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: parseInt(req.params.id) }
+    });
+
+    if (!document) {
+      return res.status(404).json({ error: "Documento não encontrado" });
+    }
+
+    const filePath = path.join(UPLOADS_DIR, document.filename);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Arquivo físico não encontrado" });
+    }
+
+    res.download(filePath, document.title);
+  } catch (error) {
+    console.error("Erro ao baixar documento:", error);
+    res.status(500).json({ error: "Erro ao baixar documento" });
+  }
+});
+
+// Deletar documento
+router.delete("/documents/:id", async (req, res) => {
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: parseInt(req.params.id) }
+    });
+
+    if (!document) {
+      return res.status(404).json({ error: "Documento não encontrado" });
+    }
+
+    // Delete DB record
+    await prisma.document.delete({
+      where: { id: parseInt(req.params.id) }
+    });
+
+    // Delete physical file
+    const filePath = path.join(UPLOADS_DIR, document.filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Erro ao deletar documento:", error);
+    res.status(500).json({ error: "Erro ao deletar documento" });
+  }
 });
 
 // Importar Excel

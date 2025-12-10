@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell } from "lucide-react";
+import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLembretesCount } from "@/hooks/useLembretes";
@@ -23,6 +23,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Relatório Mensal", href: "/monthly", icon: BarChart3 },
     { name: "Relatório Trimestral", href: "/quarterly", icon: PieChart },
     { name: "Guia de Atendimento", href: "/guide", icon: BookText },
+    { name: "Documentação", href: "/docs", icon: BookOpen },
     { name: "Lembretes", href: "/reminders", icon: Bell, badge: lembretesCount.atrasados > 0 ? lembretesCount.atrasados : (lembretesCount.urgentes > 0 ? lembretesCount.urgentes : lembretesCount.pendentes), badgeColor: lembretesCount.atrasados > 0 ? "bg-red-500" : (lembretesCount.urgentes > 0 ? "bg-red-500" : "bg-orange-500") },
   ];
 
