@@ -20,8 +20,31 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Shield, ShieldAlert, User as UserIcon, Lock } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Loader2, Shield, ShieldAlert, User as UserIcon, Lock, UserPlus, Eye, EyeOff, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -52,6 +75,17 @@ export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [, setLocation] = useLocation();
+
+  // Estados para criar novo usuário
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [newUser, setNewUser] = useState({
+    email: "",
+    password: "",
+    name: "",
+    role: "user" as "user" | "admin",
+  });
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
@@ -108,6 +142,58 @@ export default function Users() {
 
   const isSuperAdmin = (email: string) => SUPER_ADMIN_EMAILS.includes(email);
 
+  const handleDeleteUser = async (userId: number) => {
+    try {
+      const token = getAuthToken();
+      await api.delete(`/auth/admin/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setUsers(users.filter(u => u.id !== userId));
+      toast.success("Usuário deletado com sucesso");
+    } catch (error: any) {
+      console.error("Erro ao deletar usuário:", error);
+      const message = error.response?.data?.error || "Erro ao deletar usuário";
+      toast.error(message);
+    }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newUser.email || !newUser.password) {
+      toast.error("Email e senha são obrigatórios");
+      return;
+    }
+
+    if (newUser.password.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      const token = getAuthToken();
+      const response = await api.post("/auth/admin/create-user", newUser, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Adiciona o novo usuário na lista
+      setUsers([response.data.user, ...users]);
+
+      toast.success("Usuário criado com sucesso!");
+      setIsCreateDialogOpen(false);
+      setNewUser({ email: "", password: "", name: "", role: "user" });
+      setShowPassword(false);
+    } catch (error: any) {
+      console.error("Erro ao criar usuário:", error);
+      const message = error.response?.data?.error || "Erro ao criar usuário";
+      toast.error(message);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (isAuthLoading || (isAuthenticated && user?.isAdmin && isLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -118,11 +204,125 @@ export default function Users() {
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Gerenciar Usuários</h1>
-        <p className="text-muted-foreground">
-          Controle de acesso e permissões dos usuários do sistema
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Gerenciar Usuários</h1>
+          <p className="text-muted-foreground">
+            Controle de acesso e permissões dos usuários do sistema
+          </p>
+        </div>
+
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Criar Usuário
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <form onSubmit={handleCreateUser}>
+              <DialogHeader>
+                <DialogTitle>Criar Novo Usuário</DialogTitle>
+                <DialogDescription>
+                  Preencha os dados para criar uma nova conta de acesso ao sistema.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Nome</Label>
+                  <Input
+                    id="name"
+                    placeholder="Nome do usuário"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="email@exemplo.com"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Senha *</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Mínimo 6 caracteres"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      required
+                      minLength={6}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="role">Papel</Label>
+                  <Select
+                    value={newUser.role}
+                    onValueChange={(value: "user" | "admin") => setNewUser({ ...newUser, role: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">
+                        <div className="flex items-center gap-2">
+                          <UserIcon className="h-4 w-4 text-muted-foreground" />
+                          <span>Usuário</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="admin">
+                        <div className="flex items-center gap-2">
+                          <ShieldAlert className="h-4 w-4 text-primary" />
+                          <span>Administrador</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                  disabled={isCreating}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Criar Usuário
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
@@ -144,6 +344,7 @@ export default function Users() {
                   <TableHead>Cadastro</TableHead>
                   <TableHead>Docs</TableHead>
                   <TableHead>Papel</TableHead>
+                  <TableHead className="w-[80px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,6 +427,39 @@ export default function Users() {
                             </Select>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {!isSuper && user?.id !== u.id && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Deletar usuário?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja deletar o usuário <strong>{u.name || u.email}</strong>?
+                                  Esta ação não pode ser desfeita e todos os dados do usuário serão removidos.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteUser(u.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Deletar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

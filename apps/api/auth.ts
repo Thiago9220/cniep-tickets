@@ -112,14 +112,31 @@ export function isAdminEmail(email: string): boolean {
   return ADMIN_EMAILS.includes(email);
 }
 
-// ============== REGISTER ==============
+// ============== REGISTER (DESABILITADO - Apenas admins podem criar usuários) ==============
 router.post("/register", loginRateLimiter, async (req: Request, res: Response) => {
+  return res.status(403).json({
+    error: "Registro público desabilitado. Entre em contato com um administrador para obter acesso."
+  });
+});
+
+// ============== ADMIN: CRIAR USUÁRIO ==============
+router.post("/admin/create-user", adminMiddleware, async (req: Request, res: Response) => {
   const logger = createLogger(req);
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, role: userRole } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email e senha são obrigatórios" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: "A senha deve ter pelo menos 6 caracteres" });
+    }
+
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Email inválido" });
     }
 
     // Check if user already exists
@@ -128,41 +145,47 @@ router.post("/register", loginRateLimiter, async (req: Request, res: Response) =
     });
 
     if (existingUser) {
-      logger.warn("Tentativa de registro com email já existente", { email });
+      logger.warn("Tentativa de criar usuário com email já existente", { email, adminId: req.user!.id });
       return res.status(400).json({ error: "Este email já está cadastrado" });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Determinar role (admin pode criar outros admins, mas super admins são protegidos)
+    let finalRole = userRole === "admin" ? "admin" : "user";
     // Se o email estiver na lista de super admins, define como admin automaticamente
-    const role = ADMIN_EMAILS.includes(email) ? "admin" : "user";
+    if (ADMIN_EMAILS.includes(email)) {
+      finalRole = "admin";
+    }
 
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name: name || null,
-        role,
+        role: finalRole,
       },
     });
 
-    // Generate token
-    const token = generateToken(user);
+    logger.info("Novo usuário criado por admin", {
+      userId: user.id,
+      email: user.email,
+      createdBy: req.user!.id
+    });
 
-    logger.info("Novo usuário registrado", { userId: user.id, email: user.email });
     res.status(201).json({
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         role: user.role,
+        createdAt: user.createdAt,
       },
-      token,
+      message: "Usuário criado com sucesso",
     });
   } catch (error) {
-    logger.error("Erro no registro", error);
+    logger.error("Erro ao criar usuário", error);
     res.status(500).json({ error: "Erro ao criar usuário" });
   }
 });
@@ -260,7 +283,7 @@ router.post("/oauth/google", loginRateLimiter, async (req: Request, res: Respons
       picture?: string;
     };
 
-    // Find or create user
+    // Find user (não criar automaticamente - apenas admins podem criar usuários)
     let user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -271,18 +294,11 @@ router.post("/oauth/google", loginRateLimiter, async (req: Request, res: Respons
     });
 
     if (!user) {
-      // Create new user
-      const role = ADMIN_EMAILS.includes(googleUser.email) ? "admin" : "user";
-      user = await prisma.user.create({
-        data: {
-          email: googleUser.email,
-          name: googleUser.name,
-          provider: "google",
-          providerId: googleUser.sub,
-          role,
-        },
+      // Usuário não existe - registro público desabilitado
+      logger.warn("Tentativa de login Google com email não cadastrado", { email: googleUser.email });
+      return res.status(403).json({
+        error: "Usuário não cadastrado. Entre em contato com um administrador para obter acesso."
       });
-      logger.info("Novo usuário criado via Google OAuth", { userId: user.id, email: user.email });
     } else if (!user.provider) {
       // Link existing email user to Google
       user = await prisma.user.update({
@@ -386,7 +402,7 @@ router.post("/oauth/github", loginRateLimiter, async (req: Request, res: Respons
       email = primaryEmail?.email || `${githubUser.login}@github.local`;
     }
 
-    // Find or create user
+    // Find user (não criar automaticamente - apenas admins podem criar usuários)
     let user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -397,18 +413,11 @@ router.post("/oauth/github", loginRateLimiter, async (req: Request, res: Respons
     });
 
     if (!user) {
-      // Create new user
-      const role = ADMIN_EMAILS.includes(email) ? "admin" : "user";
-      user = await prisma.user.create({
-        data: {
-          email,
-          name: githubUser.name || githubUser.login,
-          provider: "github",
-          providerId: String(githubUser.id),
-          role,
-        },
+      // Usuário não existe - registro público desabilitado
+      logger.warn("Tentativa de login GitHub com email não cadastrado", { email });
+      return res.status(403).json({
+        error: "Usuário não cadastrado. Entre em contato com um administrador para obter acesso."
       });
-      logger.info("Novo usuário criado via GitHub OAuth", { userId: user.id, email: user.email });
     } else if (!user.provider) {
       // Link existing email user to GitHub
       user = await prisma.user.update({
@@ -628,6 +637,53 @@ router.post("/reset-password", loginRateLimiter, async (req: Request, res: Respo
   } catch (error) {
     logger.error("Erro no reset-password", error);
     res.status(500).json({ error: "Erro ao redefinir senha" });
+  }
+});
+
+// ============== ADMIN: DELETAR USUÁRIO ==============
+router.delete("/admin/users/:id", adminMiddleware, async (req: Request, res: Response) => {
+  const logger = createLogger(req);
+  try {
+    const userId = parseInt(req.params.id);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: "ID de usuário inválido" });
+    }
+
+    // Buscar usuário a ser deletado
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!userToDelete) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    // Impedir deletar super admins
+    if (ADMIN_EMAILS.includes(userToDelete.email)) {
+      return res.status(403).json({ error: "Não é possível deletar um Super Administrador" });
+    }
+
+    // Impedir deletar a própria conta por esta rota
+    if (req.user!.id === userId) {
+      return res.status(403).json({ error: "Não é possível deletar sua própria conta por aqui" });
+    }
+
+    // Deletar usuário (cascata vai deletar documentos, lembretes, etc.)
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    logger.info("Usuário deletado por admin", {
+      deletedUserId: userId,
+      deletedEmail: userToDelete.email,
+      deletedBy: req.user!.id
+    });
+
+    res.json({ message: "Usuário deletado com sucesso" });
+  } catch (error) {
+    logger.error("Erro ao deletar usuário", error);
+    res.status(500).json({ error: "Erro ao deletar usuário" });
   }
 });
 
