@@ -952,6 +952,174 @@ app.use("/auth", authRouter);
 app.use("/api", router);
 app.use("/", router);
 
+// ============== LEMBRETES (Reminders) ==============
+
+// Helper: reset recurring reminders concluded in previous days
+async function resetRecurringReminders(userId: number) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  try {
+    await prisma.reminder.updateMany({
+      where: {
+        userId,
+        recorrente: true,
+        concluido: true,
+        ultimaConclusao: { lt: today },
+      },
+      data: { concluido: false },
+    });
+  } catch (e) {
+    console.warn("Falha ao resetar lembretes recorrentes:", e);
+  }
+}
+
+// Listar lembretes do usuário
+router.get("/reminders", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    await resetRecurringReminders(userId);
+    const reminders = await prisma.reminder.findMany({
+      where: { userId },
+      orderBy: [
+        { concluido: "asc" },
+        { ordem: "asc" },
+        { createdAt: "desc" },
+      ],
+    });
+    res.json(reminders);
+  } catch (error) {
+    console.error("Erro ao listar lembretes:", error);
+    res.status(500).json({ error: "Erro ao listar lembretes" });
+  }
+});
+
+// Criar lembrete
+router.post("/reminders", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { titulo, descricao, dataEntrega, recorrente, prioridade, categoria, ordem } = req.body || {};
+    if (!titulo || typeof titulo !== "string") {
+      return res.status(400).json({ error: "Título é obrigatório" });
+    }
+    const parsedDue = dataEntrega ? new Date(String(dataEntrega).includes("T") ? dataEntrega : `${dataEntrega}T00:00:00`) : null;
+    const reminder = await prisma.reminder.create({
+      data: {
+        userId,
+        titulo,
+        descricao: descricao || "",
+        dataEntrega: parsedDue || undefined,
+        recorrente: !!recorrente,
+        prioridade: prioridade || "media",
+        categoria: categoria || undefined,
+        ordem: typeof ordem === "number" ? ordem : undefined,
+      },
+    });
+    res.status(201).json(reminder);
+  } catch (error) {
+    console.error("Erro ao criar lembrete:", error);
+    res.status(500).json({ error: "Erro ao criar lembrete" });
+  }
+});
+
+// Atualizar lembrete
+router.put("/reminders/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const id = String(req.params.id);
+    const existing = await prisma.reminder.findUnique({ where: { id } });
+    if (!existing || existing.userId !== userId) {
+      return res.status(404).json({ error: "Lembrete não encontrado" });
+    }
+
+    const { titulo, descricao, dataEntrega, recorrente, prioridade, categoria, ordem, concluido } = req.body || {};
+    const data: any = {};
+    if (typeof titulo === "string") data.titulo = titulo;
+    if (typeof descricao === "string") data.descricao = descricao;
+    if (typeof prioridade === "string") data.prioridade = prioridade;
+    if (typeof categoria === "string" || categoria === null) data.categoria = categoria ?? undefined;
+    if (typeof ordem === "number" || ordem === null) data.ordem = ordem ?? undefined;
+    if (typeof recorrente === "boolean") data.recorrente = recorrente;
+    if (typeof concluido === "boolean") {
+      data.concluido = concluido;
+      if (concluido === true) {
+        data.ultimaConclusao = new Date();
+      }
+    }
+    if (dataEntrega !== undefined) {
+      data.dataEntrega = dataEntrega ? new Date(String(dataEntrega).includes("T") ? dataEntrega : `${dataEntrega}T00:00:00`) : null;
+    }
+
+    const updated = await prisma.reminder.update({ where: { id }, data });
+    res.json(updated);
+  } catch (error) {
+    console.error("Erro ao atualizar lembrete:", error);
+    res.status(500).json({ error: "Erro ao atualizar lembrete" });
+  }
+});
+
+// Deletar lembrete
+router.delete("/reminders/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const id = String(req.params.id);
+    const existing = await prisma.reminder.findUnique({ where: { id } });
+    if (!existing || existing.userId !== userId) {
+      return res.status(404).json({ error: "Lembrete não encontrado" });
+    }
+    await prisma.reminder.delete({ where: { id } });
+    res.status(204).send();
+  } catch (error) {
+    console.error("Erro ao deletar lembrete:", error);
+    res.status(500).json({ error: "Erro ao deletar lembrete" });
+  }
+});
+
+// Atualização em lote de ordem
+router.post("/reminders/reorder", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const updates: Array<{ id: string; ordem: number | null }> = req.body?.updates || [];
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ error: "Formato inválido: updates" });
+    }
+    const ids = updates.map((u) => u.id);
+    const owned = await prisma.reminder.findMany({ where: { id: { in: ids }, userId } });
+    const ownedIds = new Set(owned.map((r) => r.id));
+    const tx = updates
+      .filter((u) => ownedIds.has(u.id))
+      .map((u) =>
+        prisma.reminder.update({
+          where: { id: u.id },
+          data: { ordem: u.ordem ?? undefined },
+        })
+      );
+    await prisma.$transaction(tx);
+    res.json({ updated: tx.length });
+  } catch (error) {
+    console.error("Erro ao reordenar lembretes:", error);
+    res.status(500).json({ error: "Erro ao reordenar lembretes" });
+  }
+});
+
+// Contadores
+router.get("/reminders/counts", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    await resetRecurringReminders(userId);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [pendentes, urgentes, atrasados] = await Promise.all([
+      prisma.reminder.count({ where: { userId, concluido: false } }),
+      prisma.reminder.count({ where: { userId, concluido: false, prioridade: "urgente" } }),
+      prisma.reminder.count({ where: { userId, concluido: false, dataEntrega: { lt: today } } }),
+    ]);
+    res.json({ pendentes, atrasados, urgentes });
+  } catch (error) {
+    console.error("Erro ao calcular contadores de lembretes:", error);
+    res.status(500).json({ error: "Erro ao calcular contadores" });
+  }
+});
+
 // Ensure multer and other errors return JSON consistently
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err) {

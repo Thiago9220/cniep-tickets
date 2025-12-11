@@ -57,30 +57,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await api.post("/auth/login", { email, password });
-    const { user, token } = response.data;
+    const { token } = response.data;
     localStorage.setItem(TOKEN_KEY, token);
-    setUser(user);
+    await fetchUser(token);
   };
 
   const register = async (email: string, password: string, name?: string) => {
     const response = await api.post("/auth/register", { email, password, name });
-    const { user, token } = response.data;
+    const { token } = response.data;
     localStorage.setItem(TOKEN_KEY, token);
-    setUser(user);
+    await fetchUser(token);
   };
 
   const loginWithGoogle = async (googleToken: string) => {
     const response = await api.post("/auth/oauth/google", { token: googleToken });
-    const { user, token } = response.data;
+    const { token } = response.data;
     localStorage.setItem(TOKEN_KEY, token);
-    setUser(user);
+    await fetchUser(token);
   };
 
   const loginWithGithub = async (code: string) => {
     const response = await api.post("/auth/oauth/github", { code });
-    const { user, token } = response.data;
+    const { token } = response.data;
     localStorage.setItem(TOKEN_KEY, token);
-    setUser(user);
+    await fetchUser(token);
   };
 
   const logout = () => {

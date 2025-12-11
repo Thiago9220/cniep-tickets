@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+﻿import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { remindersApi, type ReminderDTO } from "@/lib/api";
+import { getAuthToken } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Prioridade = "baixa" | "media" | "alta" | "urgente";
@@ -116,24 +118,74 @@ export default function Reminders() {
     window.dispatchEvent(new Event("lembretes-updated"));
   }, [lembretes, storageKey]);
 
-  const adicionarLembrete = () => {
-    if (!novoTitulo.trim()) {
-      toast.error("Digite um título para o lembrete");
-      return;
-    }
+  // Carregar lembretes da API por usuário
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const token = getAuthToken();
+        if (!token || !user) return;
+        const list = await remindersApi.list(token);
+        if (!mounted) return;
+        const toYMD = (iso?: string | null) => (iso ? new Date(iso).toISOString().split("T")[0] : undefined);
+        const mapped = list.map((r) => ({
+          id: r.id,
+          titulo: r.titulo,
+          descricao: r.descricao,
+          concluido: r.concluido,
+          criadoEm: new Date(r.createdAt).toLocaleDateString("pt-BR"),
+          dataEntrega: toYMD(r.dataEntrega ?? undefined),
+          recorrente: !!r.recorrente,
+          ultimaConclusao: r.ultimaConclusao ? new Date(r.ultimaConclusao).toLocaleDateString("pt-BR") : undefined,
+          prioridade: (r.prioridade as any) || "media",
+          categoria: r.categoria || undefined,
+          ordem: r.ordem === null ? undefined : r.ordem,
+        }));
+        setLembretes(mapped);
+        const temOrdemManual = mapped.some((l) => l.ordem !== undefined);
+        setOrdenacaoManual(temOrdemManual);
+      } catch (e) {
+        console.error(e);
+        toast.error("Erro ao carregar lembretes");
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [user?.id]);
 
-    const novoLembrete: Lembrete = {
-      id: Date.now().toString(),
+  
+
+  // Nova versão usando API
+  const adicionarLembrete = async () => {
+  if (!novoTitulo.trim()) {
+    toast.error("Digite um título para o lembrete");
+    return;
+  }
+  try {
+    const token = getAuthToken();
+    if (!token) return;
+    const created = await remindersApi.create(token, {
       titulo: novoTitulo,
       descricao: novaDescricao,
-      concluido: false,
-      criadoEm: new Date().toLocaleDateString("pt-BR"),
       dataEntrega: novoRecorrente ? undefined : (novaDataEntrega || undefined),
       recorrente: novoRecorrente,
       prioridade: novaPrioridade,
-      categoria: novaCategoria && novaCategoria !== "sem-categoria" ? novaCategoria : undefined,
+      categoria: novaCategoria || undefined,
+    });
+    const toYMD = (iso?: string | null) => (iso ? new Date(iso).toISOString().split("T")[0] : undefined);
+    const novoLembrete: Lembrete = {
+      id: created.id,
+      titulo: created.titulo,
+      descricao: created.descricao,
+      concluido: created.concluido,
+      criadoEm: new Date(created.createdAt).toLocaleDateString("pt-BR"),
+      dataEntrega: toYMD(created.dataEntrega ?? undefined),
+      recorrente: !!created.recorrente,
+      ultimaConclusao: created.ultimaConclusao ? new Date(created.ultimaConclusao).toLocaleDateString("pt-BR") : undefined,
+      prioridade: (created.prioridade as any) || "media",
+      categoria: created.categoria || undefined,
+      ordem: created.ordem === null ? undefined : created.ordem,
     };
-
     setLembretes([novoLembrete, ...lembretes]);
     setNovoTitulo("");
     setNovaDescricao("");
@@ -142,26 +194,51 @@ export default function Reminders() {
     setNovaPrioridade("media");
     setNovaCategoria("");
     toast.success(novoRecorrente ? "Lembrete diário adicionado!" : "Lembrete adicionado!");
+  } catch (e) {
+    console.error(e);
+    toast.error("Erro ao adicionar lembrete");
+  }
+};const toggleConcluido = async (id: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const current = lembretes.find((l) => l.id === id);
+      if (!current) return;
+      const updated = await remindersApi.update(token, id, { concluido: !current.concluido });
+      const toYMD = (iso?: string | null) => (iso ? new Date(iso).toISOString().split("T")[0] : undefined);
+      const m: Lembrete = {
+        id: updated.id,
+        titulo: updated.titulo,
+        descricao: updated.descricao,
+        concluido: updated.concluido,
+        criadoEm: new Date(updated.createdAt).toLocaleDateString("pt-BR"),
+        dataEntrega: toYMD(updated.dataEntrega ?? undefined),
+        recorrente: !!updated.recorrente,
+        ultimaConclusao: updated.ultimaConclusao ? new Date(updated.ultimaConclusao).toLocaleDateString("pt-BR") : undefined,
+        prioridade: (updated.prioridade as any) || "media",
+        categoria: updated.categoria || undefined,
+        ordem: updated.ordem === null ? undefined : updated.ordem,
+      };
+      setLembretes(lembretes.map((l) => (l.id === id ? m : l)));
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao atualizar lembrete");
+    }
   };
 
-  const toggleConcluido = (id: string) => {
-    const hoje = new Date().toLocaleDateString("pt-BR");
-    setLembretes(
-      lembretes.map((l) =>
-        l.id === id
-          ? {
-              ...l,
-              concluido: !l.concluido,
-              ultimaConclusao: !l.concluido ? hoje : l.ultimaConclusao,
-            }
-          : l
-      )
-    );
-  };
+  
 
-  const removerLembrete = (id: string) => {
-    setLembretes(lembretes.filter((l) => l.id !== id));
-    toast.success("Lembrete removido!");
+  const removerLembrete = async (id: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      await remindersApi.delete(token, id);
+      setLembretes(lembretes.filter((l) => l.id !== id));
+      toast.success("Lembrete removido!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao remover lembrete");
+    }
   };
 
   // Funções de edição
@@ -175,30 +252,46 @@ export default function Reminders() {
     setEditCategoria(lembrete.categoria || "sem-categoria");
   };
 
-  const salvarEdicao = () => {
+  
+
+  const salvarEdicao = async () => {
     if (!lembreteEditando) return;
     if (!editTitulo.trim()) {
       toast.error("Digite um título para o lembrete");
       return;
     }
-
-    setLembretes(
-      lembretes.map((l) =>
-        l.id === lembreteEditando.id
-          ? {
-              ...l,
-              titulo: editTitulo,
-              descricao: editDescricao,
-              dataEntrega: editRecorrente ? undefined : (editDataEntrega || undefined),
-              recorrente: editRecorrente,
-              prioridade: editPrioridade,
-              categoria: editCategoria && editCategoria !== "sem-categoria" ? editCategoria : undefined,
-            }
-          : l
-      )
-    );
-    setLembreteEditando(null);
-    toast.success("Lembrete atualizado!");
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const updated = await remindersApi.update(token, lembreteEditando.id, {
+        titulo: editTitulo,
+        descricao: editDescricao,
+        dataEntrega: editRecorrente ? undefined : (editDataEntrega || undefined),
+        recorrente: editRecorrente,
+        prioridade: editPrioridade,
+        categoria: editCategoria && editCategoria !== "sem-categoria" ? editCategoria : null,
+      });
+      const toYMD = (iso?: string | null) => (iso ? new Date(iso).toISOString().split("T")[0] : undefined);
+      const mapped: Lembrete = {
+        id: updated.id,
+        titulo: updated.titulo,
+        descricao: updated.descricao,
+        concluido: updated.concluido,
+        criadoEm: new Date(updated.createdAt).toLocaleDateString("pt-BR"),
+        dataEntrega: toYMD(updated.dataEntrega ?? undefined),
+        recorrente: !!updated.recorrente,
+        ultimaConclusao: updated.ultimaConclusao ? new Date(updated.ultimaConclusao).toLocaleDateString("pt-BR") : undefined,
+        prioridade: (updated.prioridade as any) || "media",
+        categoria: updated.categoria || undefined,
+        ordem: updated.ordem === null ? undefined : updated.ordem,
+      };
+      setLembretes(lembretes.map((l) => (l.id === mapped.id ? mapped : l)));
+      setLembreteEditando(null);
+      toast.success("Lembrete atualizado!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao atualizar lembrete");
+    }
   };
 
   const fecharEdicao = () => {
@@ -222,7 +315,7 @@ export default function Reminders() {
     setDragOverId(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetId: string) => {
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     if (!draggedId || draggedId === targetId) {
       setDraggedId(null);
@@ -258,19 +351,40 @@ export default function Reminders() {
     setOrdenacaoManual(true);
     setDraggedId(null);
     setDragOverId(null);
-    toast.success("Ordem atualizada!");
+    try {
+      const token = getAuthToken();
+      if (token) {
+        const updates = lembretesAtualizados
+          .filter((l) => !l.concluido)
+          .map((l) => ({ id: l.id, ordem: l.ordem ?? null }));
+        await remindersApi.reorder(token, updates);
+      }
+      toast.success("Ordem atualizada!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao atualizar ordem");
+    }
   };
-
   const handleDragEnd = () => {
     setDraggedId(null);
     setDragOverId(null);
   };
 
-  const resetarOrdenacao = () => {
+  const resetarOrdenacao = async () => {
     const lembretesAtualizados = lembretes.map((l) => ({ ...l, ordem: undefined }));
     setLembretes(lembretesAtualizados);
     setOrdenacaoManual(false);
-    toast.success("Ordenação por prioridade restaurada!");
+    try {
+      const token = getAuthToken();
+      if (token) {
+        const updates = lembretesAtualizados.map((l) => ({ id: l.id, ordem: null }));
+        await remindersApi.reorder(token, updates);
+      }
+      toast.success("Ordenação por prioridade restaurada!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao restaurar ordenação");
+    }
   };
 
   const prioridadeOrdem: Record<Prioridade, number> = {
@@ -341,7 +455,7 @@ export default function Reminders() {
       return prioridadeOrdem[a.prioridade || "media"] - prioridadeOrdem[b.prioridade || "media"];
     });
 
-  const lembretesConluidos = lembretes.filter((l) => l.concluido);
+  const lembretesConcluidos = lembretes.filter((l) => l.concluido);
 
   // Contadores para filtros
   const countAtrasados = lembretes.filter((l) => !l.concluido && isAtrasado(l)).length;
@@ -751,14 +865,14 @@ export default function Reminders() {
       </div>
 
       {/* Card de lembretes concluídos */}
-      {lembretesConluidos.length > 0 && (
+      {lembretesConcluidos.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
               Concluídos
               <span className="ml-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                {lembretesConluidos.length}
+                {lembretesConcluidos.length}
               </span>
             </CardTitle>
             <CardDescription>
@@ -767,7 +881,7 @@ export default function Reminders() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {lembretesConluidos.map((lembrete) => (
+              {lembretesConcluidos.map((lembrete) => (
                 <div
                   key={lembrete.id}
                   className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg group opacity-60 hover:opacity-100 transition-opacity"
@@ -960,3 +1074,4 @@ export default function Reminders() {
     </div>
   );
 }
+

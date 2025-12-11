@@ -106,6 +106,76 @@ export const ticketsApi = {
   },
 };
 
+// Tipos para lembretes
+export type Prioridade = "baixa" | "media" | "alta" | "urgente";
+
+export interface ReminderDTO {
+  id: string;
+  titulo: string;
+  descricao: string;
+  concluido: boolean;
+  createdAt: string;
+  updatedAt: string;
+  dataEntrega?: string | null;
+  recorrente: boolean;
+  ultimaConclusao?: string | null;
+  prioridade: Prioridade;
+  categoria?: string | null;
+  ordem?: number | null;
+}
+
+export interface ReminderCreate {
+  titulo: string;
+  descricao?: string;
+  dataEntrega?: string | null; // formato YYYY-MM-DD
+  recorrente?: boolean;
+  prioridade?: Prioridade;
+  categoria?: string | null;
+  ordem?: number | null;
+}
+
+export interface ReminderUpdate extends Partial<ReminderCreate> {
+  concluido?: boolean;
+}
+
+export const remindersApi = {
+  list: async (token: string): Promise<ReminderDTO[]> => {
+    const res = await api.get<ReminderDTO[]>("/reminders", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  counts: async (token: string): Promise<{ pendentes: number; atrasados: number; urgentes: number }> => {
+    const res = await api.get("/reminders/counts", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  create: async (token: string, data: ReminderCreate): Promise<ReminderDTO> => {
+    const res = await api.post<ReminderDTO>("/reminders", data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  update: async (token: string, id: string, data: ReminderUpdate): Promise<ReminderDTO> => {
+    const res = await api.put<ReminderDTO>(`/reminders/${id}`, data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  delete: async (token: string, id: string): Promise<void> => {
+    await api.delete(`/reminders/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  reorder: async (token: string, updates: Array<{ id: string; ordem: number | null }>): Promise<{ updated: number }> => {
+    const res = await api.post(`/reminders/reorder`, { updates }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+};
+
 // Tipos para estatísticas de período
 export interface WeeklyStatsResponse {
   weekKey: string;

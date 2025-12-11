@@ -80,7 +80,29 @@ model User {
   providerId String?  // ID do provedor OAuth
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  reminders  Reminder[]
 
   @@index([email])
   @@index([provider, providerId])
+}
+
+model Reminder {
+  id              String   @id @default(cuid())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titulo          String
+  descricao       String
+  concluido       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  dataEntrega     DateTime?
+  recorrente      Boolean  @default(false)
+  ultimaConclusao DateTime?
+  prioridade      String   @default("media")
+  categoria       String?
+  ordem           Int?
+
+  @@index([userId])
+  @@index([userId, concluido])
+  @@index([userId, dataEntrega])
 }
