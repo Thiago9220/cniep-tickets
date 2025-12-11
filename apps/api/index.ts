@@ -50,23 +50,27 @@ router.get("/hello", (_req, res) => {
 // ============== DOCUMENTOS ==============
 
 // Upload de documento
-router.post("/documents", uploadDocs.single("file"), async (req, res) => {
+router.post("/documents", authMiddleware, uploadDocs.single("file"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Nenhum arquivo enviado" });
     }
 
+    const userId = (req as any).userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Usuário não autenticado" });
+    }
+
     const { originalname, filename, size, mimetype } = req.file;
-    // URL relative to the API, assuming we serve static files or have a download route
-    // For now, we store the internal filename and serve via download route
-    
+
     const document = await prisma.document.create({
       data: {
-        title: originalname, // Default title is filename
+        userId: userId,
+        title: originalname,
         filename: filename,
         fileType: mimetype,
         size: size,
-        url: `/api/documents/download/${filename}` // Virtual URL
+        url: `/api/documents/download/${filename}`
       }
     });
 
@@ -77,10 +81,16 @@ router.post("/documents", uploadDocs.single("file"), async (req, res) => {
   }
 });
 
-// Listar documentos
-router.get("/documents", async (_req, res) => {
+// Listar documentos do usuário
+router.get("/documents", authMiddleware, async (req, res) => {
   try {
+    const userId = (req as any).userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Usuário não autenticado" });
+    }
+
     const documents = await prisma.document.findMany({
+      where: { userId: userId },
       orderBy: { createdAt: "desc" }
     });
     res.json(documents);
@@ -91,8 +101,13 @@ router.get("/documents", async (_req, res) => {
 });
 
 // Download de documento
-router.get("/documents/:id/download", async (req, res) => {
+router.get("/documents/:id/download", authMiddleware, async (req, res) => {
   try {
+    const userId = (req as any).userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Usuário não autenticado" });
+    }
+
     const document = await prisma.document.findUnique({
       where: { id: parseInt(req.params.id) }
     });
@@ -101,8 +116,13 @@ router.get("/documents/:id/download", async (req, res) => {
       return res.status(404).json({ error: "Documento não encontrado" });
     }
 
+    // Verificar se o documento pertence ao usuário
+    if (document.userId !== userId) {
+      return res.status(403).json({ error: "Acesso negado" });
+    }
+
     const filePath = path.join(UPLOADS_DIR, document.filename);
-    
+
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: "Arquivo físico não encontrado" });
     }
@@ -115,14 +135,24 @@ router.get("/documents/:id/download", async (req, res) => {
 });
 
 // Deletar documento
-router.delete("/documents/:id", async (req, res) => {
+router.delete("/documents/:id", authMiddleware, async (req, res) => {
   try {
+    const userId = (req as any).userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Usuário não autenticado" });
+    }
+
     const document = await prisma.document.findUnique({
       where: { id: parseInt(req.params.id) }
     });
 
     if (!document) {
       return res.status(404).json({ error: "Documento não encontrado" });
+    }
+
+    // Verificar se o documento pertence ao usuário
+    if (document.userId !== userId) {
+      return res.status(403).json({ error: "Acesso negado" });
     }
 
     // Delete DB record
