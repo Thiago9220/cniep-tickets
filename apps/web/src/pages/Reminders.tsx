@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Prioridade = "baixa" | "media" | "alta" | "urgente";
 
@@ -50,6 +51,8 @@ const getCategoriaConfig = (categoria?: string) => {
 };
 
 export default function Reminders() {
+  const { user } = useAuth();
+  const storageKey = user ? `lembretes:${user.id}` : "lembretes";
   const [lembretes, setLembretes] = useState<Lembrete[]>([]);
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novaDescricao, setNovaDescricao] = useState("");
@@ -75,9 +78,17 @@ export default function Reminders() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [ordenacaoManual, setOrdenacaoManual] = useState(false);
 
-  // Carregar lembretes do localStorage e resetar recorrentes
+  // Carregar lembretes do localStorage (por usuário) e resetar recorrentes
   useEffect(() => {
-    const lembretesStorage = localStorage.getItem("lembretes");
+    // Migração simples: mover da chave antiga global para a chave por usuário, se existir
+    const legacy = localStorage.getItem("lembretes");
+    const existingForUser = localStorage.getItem(storageKey);
+    if (legacy && !existingForUser) {
+      localStorage.setItem(storageKey, legacy);
+      localStorage.removeItem("lembretes");
+    }
+
+    const lembretesStorage = localStorage.getItem(storageKey);
     if (lembretesStorage) {
       const lembretesCarregados: Lembrete[] = JSON.parse(lembretesStorage);
       const hoje = new Date().toLocaleDateString("pt-BR");
@@ -96,12 +107,14 @@ export default function Reminders() {
       const temOrdemManual = lembretesAtualizados.some((l) => l.ordem !== undefined);
       setOrdenacaoManual(temOrdemManual);
     }
-  }, []);
+  }, [storageKey]);
 
-  // Salvar lembretes no localStorage
+  // Salvar lembretes no localStorage (por usuário)
   useEffect(() => {
-    localStorage.setItem("lembretes", JSON.stringify(lembretes));
-  }, [lembretes]);
+    localStorage.setItem(storageKey, JSON.stringify(lembretes));
+    // Notificar outros hooks na mesma aba
+    window.dispatchEvent(new Event("lembretes-updated"));
+  }, [lembretes, storageKey]);
 
   const adicionarLembrete = () => {
     if (!novoTitulo.trim()) {

@@ -76,7 +76,6 @@ export default function Profile() {
       const response = await api.post("/auth/avatar/upload", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
         },
       });
 
@@ -181,7 +180,7 @@ export default function Profile() {
                 className="h-32 w-32 cursor-pointer ring-4 ring-background shadow-lg transition-transform group-hover:scale-105"
                 onClick={handleAvatarClick}
               >
-                <AvatarImage src={user?.avatar || undefined} alt={user?.name || "Avatar"} />
+                <AvatarImage src={(user?.avatar ? ((user.avatar.startsWith("http") ? user.avatar : (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/$/, "").replace(/\/api$/, "") + user.avatar)) : undefined)} alt={user?.name || "Avatar"} />
                 <AvatarFallback className="text-3xl bg-primary/10">
                   {getInitials()}
                 </AvatarFallback>

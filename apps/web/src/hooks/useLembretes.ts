@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Lembrete {
   id: string;
@@ -18,10 +19,12 @@ export function useLembretesCount() {
     atrasados: 0,
     urgentes: 0,
   });
+  const { user } = useAuth();
 
   useEffect(() => {
     const calcularCounts = () => {
-      const lembretesStorage = localStorage.getItem("lembretes");
+      const storageKey = user ? `lembretes:${user.id}` : "lembretes";
+      const lembretesStorage = localStorage.getItem(storageKey);
       if (!lembretesStorage) {
         setCounts({ pendentes: 0, atrasados: 0, urgentes: 0 });
         return;
@@ -62,7 +65,8 @@ export function useLembretesCount() {
 
     // Escutar mudanças no localStorage
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === "lembretes") {
+      const storageKey = user ? `lembretes:${user.id}` : "lembretes";
+      if (e.key === storageKey) {
         calcularCounts();
       }
     };
@@ -81,7 +85,7 @@ export function useLembretesCount() {
       window.removeEventListener("lembretes-updated", handleCustomEvent);
       clearInterval(interval);
     };
-  }, []);
+  }, [user?.id]);
 
   return counts;
 }

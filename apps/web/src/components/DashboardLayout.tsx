@@ -48,7 +48,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="w-full justify-start gap-3 px-3">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.avatar || undefined} alt={user?.name || "Avatar"} />
+            <AvatarImage src={(user?.avatar ? ((user.avatar.startsWith("http") ? user.avatar : (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/$/, "").replace(/\/api$/, "") + user.avatar)) : undefined)} alt={user?.name || "Avatar"} />
             <AvatarFallback className="bg-primary/10 text-primary text-xs">
               {getInitials()}
             </AvatarFallback>

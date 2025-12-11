@@ -210,7 +210,7 @@ export default function Home() {
                   )}
                   asChild
                 >
-                  <Link href="/lembretes">
+                  <Link href="/reminders">
                     <Bell className="h-4 w-4 mr-2" />
                     Ver Lembretes
                   </Link>

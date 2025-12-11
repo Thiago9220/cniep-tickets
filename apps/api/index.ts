@@ -896,7 +896,14 @@ const uploadAvatar = multer({
   storage: avatarStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/pjpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -944,6 +951,21 @@ app.use("/auth", authRouter);
 // app.use("/", authMiddleware, router);
 app.use("/api", router);
 app.use("/", router);
+
+// Ensure multer and other errors return JSON consistently
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ error: "Arquivo muito grande. Tamanho máximo: 5MB" });
+    }
+    const message = typeof err.message === "string" ? err.message : "Erro no upload";
+    if (message.includes("Tipo de arquivo") || message.toLowerCase().includes("tipo de arquivo")) {
+      return res.status(415).json({ error: message });
+    }
+    return res.status(500).json({ error: message });
+  }
+  return res.status(500).json({ error: "Erro interno do servidor" });
+});
 
 if (process.env.NODE_ENV !== "production") {
   const port = 5000;
