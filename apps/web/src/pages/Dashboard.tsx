@@ -9,7 +9,7 @@ import {
   TICKET_PRIORITY_COLORS,
   TICKET_STATUS_COLORS,
 } from "@/types/ticket";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -33,29 +33,62 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
+  Search,
+  Filter,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<TicketStats | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
   const [criticalTickets, setCriticalTickets] = useState<Ticket[]>([]);
+  const [allTickets, setAllTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados de filtro
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [filterPriority, setFilterPriority] = useState<string>("todos");
+  const [filterType, setFilterType] = useState<string>("todos");
+  const [filterDateStart, setFilterDateStart] = useState<string>("");
+  const [filterDateEnd, setFilterDateEnd] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [showTicketList, setShowTicketList] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [statsData, monthlyData, criticalData] = await Promise.all([
+      const [statsData, monthlyData, criticalData, ticketsData] = await Promise.all([
         ticketsApi.getStats(),
         ticketsApi.getMonthlyStats(),
         ticketsApi.getCriticalTickets(),
+        ticketsApi.getAll(),
       ]);
       setStats(statsData);
       setMonthlyStats(monthlyData);
       setCriticalTickets(criticalData);
+      setAllTickets(ticketsData);
     } catch (err) {
       setError("Erro ao carregar dados. Verifique se a API está rodando.");
       console.error(err);
@@ -67,6 +100,55 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Filtrar tickets
+  const filteredTickets = useMemo(() => {
+    return allTickets.filter((ticket) => {
+      // Busca por texto
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchTitle = ticket.title.toLowerCase().includes(search);
+        const matchDesc = ticket.description?.toLowerCase().includes(search);
+        const matchNumber = ticket.ticketNumber?.toString().includes(search);
+        if (!matchTitle && !matchDesc && !matchNumber) return false;
+      }
+
+      // Filtro por status
+      if (filterStatus !== "todos" && ticket.status !== filterStatus) return false;
+
+      // Filtro por prioridade
+      if (filterPriority !== "todos" && ticket.priority !== filterPriority) return false;
+
+      // Filtro por tipo
+      if (filterType !== "todos" && ticket.type !== filterType) return false;
+
+      // Filtro por data
+      if (filterDateStart && ticket.registrationDate) {
+        const ticketDate = new Date(ticket.registrationDate);
+        const startDate = new Date(filterDateStart);
+        if (ticketDate < startDate) return false;
+      }
+      if (filterDateEnd && ticket.registrationDate) {
+        const ticketDate = new Date(ticket.registrationDate);
+        const endDate = new Date(filterDateEnd);
+        endDate.setHours(23, 59, 59);
+        if (ticketDate > endDate) return false;
+      }
+
+      return true;
+    });
+  }, [allTickets, searchTerm, filterStatus, filterPriority, filterType, filterDateStart, filterDateEnd]);
+
+  const hasActiveFilters = searchTerm || filterStatus !== "todos" || filterPriority !== "todos" || filterType !== "todos" || filterDateStart || filterDateEnd;
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterStatus("todos");
+    setFilterPriority("todos");
+    setFilterType("todos");
+    setFilterDateStart("");
+    setFilterDateEnd("");
+  };
 
   if (loading) {
     return (
@@ -129,15 +211,243 @@ export default function Dashboard() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight text-primary">Dashboard de Chamados</h1>
-          <Button onClick={fetchData} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowTicketList(!showTicketList)}
+              variant={showTicketList ? "default" : "outline"}
+              size="sm"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              {showTicketList ? "Ocultar Lista" : "Ver Tickets"}
+            </Button>
+            <Button onClick={fetchData} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
         </div>
         <p className="text-muted-foreground">
           Visão geral dos chamados importados do GLPI - Sistema CNIEP
         </p>
       </div>
+
+      {/* Seção de Filtros e Lista de Tickets */}
+      {showTicketList && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="h-5 w-5" />
+                  Buscar e Filtrar Tickets
+                </CardTitle>
+                <CardDescription>
+                  {filteredTickets.length} de {allTickets.length} tickets
+                  {hasActiveFilters && " (filtrado)"}
+                </CardDescription>
+              </div>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-1" />
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Busca por texto */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por título, descrição ou número do ticket..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Filtros colapsáveis */}
+            <Collapsible open={showFilters} onOpenChange={setShowFilters}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filtros avançados
+                  </span>
+                  {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {/* Status */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        {Object.entries(TICKET_STATUS_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Prioridade */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Prioridade</label>
+                    <Select value={filterPriority} onValueChange={setFilterPriority}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todas</SelectItem>
+                        {Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Tipo */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Tipo</label>
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        {Object.entries(TICKET_TYPE_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Data início */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Data início</label>
+                    <Input
+                      type="date"
+                      value={filterDateStart}
+                      onChange={(e) => setFilterDateStart(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Data fim */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Data fim</label>
+                    <Input
+                      type="date"
+                      value={filterDateEnd}
+                      onChange={(e) => setFilterDateEnd(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Tabela de tickets */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="max-h-[400px] overflow-y-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="text-left p-3 text-sm font-medium">#</th>
+                      <th className="text-left p-3 text-sm font-medium">Título</th>
+                      <th className="text-left p-3 text-sm font-medium hidden md:table-cell">Tipo</th>
+                      <th className="text-left p-3 text-sm font-medium">Status</th>
+                      <th className="text-left p-3 text-sm font-medium hidden sm:table-cell">Prioridade</th>
+                      <th className="text-left p-3 text-sm font-medium hidden lg:table-cell">Data</th>
+                      <th className="text-left p-3 text-sm font-medium">Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTickets.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                          {hasActiveFilters ? "Nenhum ticket encontrado com os filtros aplicados" : "Nenhum ticket cadastrado"}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredTickets.slice(0, 100).map((ticket) => (
+                        <tr key={ticket.id} className="border-t hover:bg-muted/30 transition-colors">
+                          <td className="p-3 text-sm font-mono">
+                            {ticket.ticketNumber || ticket.id}
+                          </td>
+                          <td className="p-3 text-sm">
+                            <div className="max-w-[300px] truncate" title={ticket.title}>
+                              {ticket.title}
+                            </div>
+                          </td>
+                          <td className="p-3 text-sm hidden md:table-cell">
+                            <Badge
+                              variant="outline"
+                              style={{
+                                borderColor: TICKET_TYPE_COLORS[ticket.type] || "#6b7280",
+                                color: TICKET_TYPE_COLORS[ticket.type] || "#6b7280"
+                              }}
+                            >
+                              {TICKET_TYPE_LABELS[ticket.type] || ticket.type}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-sm">
+                            <Badge
+                              style={{
+                                backgroundColor: TICKET_STATUS_COLORS[ticket.status] || "#6b7280",
+                              }}
+                            >
+                              {TICKET_STATUS_LABELS[ticket.status] || ticket.status}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-sm hidden sm:table-cell">
+                            <Badge
+                              variant="outline"
+                              style={{
+                                borderColor: TICKET_PRIORITY_COLORS[ticket.priority] || "#6b7280",
+                                color: TICKET_PRIORITY_COLORS[ticket.priority] || "#6b7280"
+                              }}
+                            >
+                              {TICKET_PRIORITY_LABELS[ticket.priority] || ticket.priority}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-sm hidden lg:table-cell text-muted-foreground">
+                            {ticket.registrationDate
+                              ? new Date(ticket.registrationDate).toLocaleDateString("pt-BR")
+                              : "-"}
+                          </td>
+                          <td className="p-3 text-sm">
+                            {ticket.url ? (
+                              <a
+                                href={ticket.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-700"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filteredTickets.length > 100 && (
+                <div className="bg-muted/30 p-2 text-center text-sm text-muted-foreground border-t">
+                  Mostrando 100 de {filteredTickets.length} tickets. Use os filtros para refinar a busca.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">

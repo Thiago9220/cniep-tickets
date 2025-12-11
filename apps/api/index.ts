@@ -6,7 +6,7 @@ import { processExcelBuffer } from "@cniep/shared/import-excel";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import authRouter, { authMiddleware } from "./auth";
+import authRouter, { authMiddleware, adminMiddleware, isAdminEmail } from "./auth";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -173,8 +173,8 @@ router.delete("/documents/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Importar Excel
-router.post("/tickets/import", upload.single("file"), async (req, res) => {
+// Importar Excel (apenas admin)
+router.post("/tickets/import", adminMiddleware, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Nenhum arquivo enviado" });
@@ -216,8 +216,8 @@ router.get("/tickets/:id", async (req, res) => {
   }
 });
 
-// Criar um novo ticket
-router.post("/tickets", async (req, res) => {
+// Criar um novo ticket (apenas admin)
+router.post("/tickets", adminMiddleware, async (req, res) => {
   try {
     const { title, description, status, priority, type, url, ticketNumber, registrationDate } = req.body;
     const ticket = await prisma.ticket.create({
@@ -238,8 +238,8 @@ router.post("/tickets", async (req, res) => {
   }
 });
 
-// Atualizar um ticket
-router.put("/tickets/:id", async (req, res) => {
+// Atualizar um ticket (apenas admin)
+router.put("/tickets/:id", adminMiddleware, async (req, res) => {
   try {
     const { title, description, status, priority, type, url, ticketNumber, registrationDate } = req.body;
     const ticket = await prisma.ticket.update({
@@ -261,8 +261,8 @@ router.put("/tickets/:id", async (req, res) => {
   }
 });
 
-// Deletar um ticket
-router.delete("/tickets/:id", async (req, res) => {
+// Deletar um ticket (apenas admin)
+router.delete("/tickets/:id", adminMiddleware, async (req, res) => {
   try {
     await prisma.ticket.delete({
       where: { id: parseInt(req.params.id) },

@@ -94,12 +94,13 @@ export const ticketsApi = {
     return response.data;
   },
 
-  importExcel: async (file: File): Promise<any> => {
+  importExcel: async (file: File, token: string): Promise<any> => {
     const formData = new FormData();
     formData.append("file", file);
     const response = await api.post("/tickets/import", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
+        "Authorization": `Bearer ${token}`,
       },
     });
     return response.data;

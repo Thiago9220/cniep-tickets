@@ -8,6 +8,7 @@ import { ticketsApi, type TicketStats } from "@/lib/api";
 import { NewTicketDialog } from "@/components/NewTicketDialog";
 import { useLembretesCount } from "@/hooks/useLembretes";
 import { cn } from "@/lib/utils";
+import { useAuth, getAuthToken } from "@/contexts/AuthContext";
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -16,6 +17,8 @@ export default function Home() {
   const [stats, setStats] = useState<TicketStats | null>(null);
   const [alertaFechado, setAlertaFechado] = useState(false);
   const lembretesCount = useLembretesCount();
+  const { user } = useAuth();
+  const isAdmin = user?.isAdmin ?? false;
 
   const temAlerta = lembretesCount.atrasados > 0 || lembretesCount.urgentes > 0;
 
@@ -116,7 +119,15 @@ export default function Home() {
     });
 
     try {
-      const stats = await ticketsApi.importExcel(file);
+      const token = getAuthToken();
+      if (!token) {
+        toast.error("Erro na importação", {
+          id: toastId,
+          description: "Você precisa estar logado para importar.",
+        });
+        return;
+      }
+      const stats = await ticketsApi.importExcel(file, token);
       toast.success("Importação concluída!", {
         id: toastId,
         description: `${stats.imported} criados, ${stats.updated} atualizados, ${stats.skipped} ignorados.`,
@@ -248,23 +259,27 @@ export default function Home() {
               Visualize métricas e gráficos dos chamados importados do Excel.
             </p>
             <div className="flex gap-2 flex-wrap relative z-20">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleImportClick();
-                }}
-                disabled={isImporting}
-              >
-                {isImporting ? "Importando..." : "Importar Excel"}
-                {!isImporting && <Upload className="ml-2 h-3 w-3" />}
-              </Button>
-              <NewTicketDialog onTicketCreated={() => {
-                ticketsApi.getStats().then(setStats);
-              }} />
+              {isAdmin && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleImportClick();
+                    }}
+                    disabled={isImporting}
+                  >
+                    {isImporting ? "Importando..." : "Importar Excel"}
+                    {!isImporting && <Upload className="ml-2 h-3 w-3" />}
+                  </Button>
+                  <NewTicketDialog onTicketCreated={() => {
+                    ticketsApi.getStats().then(setStats);
+                  }} />
+                </>
+              )}
               <Link href="/dashboard" className="flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 px-3 py-2">
                 Dashboard <ArrowRight className="h-3 w-3" />
               </Link>

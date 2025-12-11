@@ -7,6 +7,7 @@ interface User {
   name: string | null;
   avatar?: string | null;
   provider?: string | null;
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
