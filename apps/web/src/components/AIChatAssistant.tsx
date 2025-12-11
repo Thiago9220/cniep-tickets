@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Bot, Copy, Send, Settings, User, X, Loader2, FileText, Trash2, Plus } from "lucide-react";
+import { Bot, Copy, Send, Settings, User, X, Loader2, FileText, Trash2, Plus, Globe, Lock } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -17,9 +17,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import ReactMarkdown from "react-markdown";
 import { api, manualsApi, type Manual } from "@/lib/api"; // Import the API client
-import { getAuthToken } from "@/contexts/AuthContext"; // Import auth token helper
+import { getAuthToken, useAuth } from "@/contexts/AuthContext"; // Import auth token helper
 
 interface Message {
   id: string;
@@ -48,6 +49,9 @@ Base de conhecimento do CNIEP:
 `;
 
 export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -56,6 +60,7 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
   const [isLoadingManuais, setIsLoadingManuais] = useState(false);
   const [novoManualTitulo, setNovoManualTitulo] = useState("");
   const [novoManualConteudo, setNovoManualConteudo] = useState("");
+  const [novoManualIsGlobal, setNovoManualIsGlobal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -103,11 +108,13 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
       await manualsApi.create(token, {
         titulo: novoManualTitulo.trim(),
         conteudo: novoManualConteudo.trim(),
+        isGlobal: isAdmin ? novoManualIsGlobal : false,
       });
       
       toast.success(`Manual "${novoManualTitulo}" salvo com sucesso!`);
       setNovoManualTitulo("");
       setNovoManualConteudo("");
+      setNovoManualIsGlobal(false);
       carregarManuais();
     } catch (error) {
       console.error("Erro ao salvar manual:", error);
@@ -132,7 +139,7 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
   const getManuaisContext = () => {
     if (manuais.length === 0) return "";
     return manuais
-      .map((m) => `### ${m.title}\n${m.content}`)
+      .map((m) => `### ${m.title} (${m.isGlobal ? "Documentação Oficial" : "Anotação Pessoal"})\n${m.content}`)
       .join("\n\n---\n\n");
   };
 
@@ -299,7 +306,9 @@ Assistente:`
                 <DialogHeader>
                   <DialogTitle>Configurações do Assistente</DialogTitle>
                   <DialogDescription>
-                    Adicione conteúdo de manuais para o assistente. (Salvos na sua conta)
+                    {isAdmin 
+                      ? "Gerencie manuais pessoais ou documentação oficial (Global)." 
+                      : "Adicione manuais pessoais para o assistente."}
                   </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="manuais" className="w-full">
@@ -343,6 +352,23 @@ Assistente:`
                           {novoManualConteudo.length.toLocaleString()} caracteres
                         </p>
                       </div>
+
+                      {isAdmin && (
+                        <div className="flex items-center space-x-2 pt-2">
+                          <Checkbox 
+                            id="manual-global" 
+                            checked={novoManualIsGlobal}
+                            onCheckedChange={(checked) => setNovoManualIsGlobal(checked as boolean)}
+                          />
+                          <Label 
+                            htmlFor="manual-global" 
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            Disponibilizar para todos (Manual Oficial/Global)
+                          </Label>
+                        </div>
+                      )}
+
                       <Button
                         onClick={adicionarManual}
                         disabled={!novoManualTitulo.trim() || !novoManualConteudo.trim()}
@@ -361,26 +387,42 @@ Assistente:`
                     ) : manuais.length > 0 ? (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <Label>Manuais Salvos ({manuais.length})</Label>
+                          <Label>Manuais Disponíveis ({manuais.length})</Label>
                         </div>
                         <ScrollArea className="h-[150px]">
                           <div className="space-y-2 pr-4">
                             {manuais.map((manual) => (
                               <div
                                 key={manual.id}
-                                className="flex items-center justify-between p-3 border rounded-md bg-background"
+                                className={cn(
+                                  "flex items-center justify-between p-3 border rounded-md",
+                                  manual.isGlobal ? "bg-blue-50/50 border-blue-100 dark:bg-blue-900/10 dark:border-blue-900" : "bg-background"
+                                )}
                               >
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{manual.title}</p>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {manual.isGlobal ? (
+                                      <Globe className="h-3 w-3 text-blue-500" title="Manual Global (Visível para todos)" />
+                                    ) : (
+                                      <Lock className="h-3 w-3 text-muted-foreground" title="Manual Pessoal (Apenas você vê)" />
+                                    )}
+                                    <p className="font-medium text-sm truncate">{manual.title}</p>
+                                  </div>
                                   <p className="text-xs text-muted-foreground">
                                     {manual.content.length.toLocaleString()} caracteres
+                                    {manual.isGlobal && " • Oficial"}
                                   </p>
                                 </div>
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  disabled={manual.isGlobal && !isAdmin}
                                   onClick={() => removerManual(manual.id)}
-                                  className="h-8 w-8 text-destructive hover:text-destructive flex-shrink-0"
+                                  className={cn(
+                                    "h-8 w-8 flex-shrink-0",
+                                    manual.isGlobal && !isAdmin ? "opacity-30 cursor-not-allowed" : "text-destructive hover:text-destructive"
+                                  )}
+                                  title={manual.isGlobal && !isAdmin ? "Apenas administradores podem remover manuais globais" : "Remover manual"}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>

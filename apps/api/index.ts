@@ -1187,13 +1187,21 @@ router.get("/reminders/counts", authMiddleware, async (req, res) => {
 
 // ============== MANUAIS (Manuals) ==============
 
-// Listar manuais do usuário
+// Listar manuais (Pessoais + Globais)
 router.get("/manuals", authMiddleware, async (req, res) => {
   try {
     const userId = req.user!.id;
     const manuals = await prisma.manual.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
+      where: {
+        OR: [
+          { userId: userId },
+          { isGlobal: true }
+        ]
+      },
+      orderBy: [
+        { isGlobal: "desc" }, // Globais primeiro
+        { createdAt: "desc" }
+      ],
     });
     res.json(manuals);
   } catch (error) {
@@ -1206,10 +1214,21 @@ router.get("/manuals", authMiddleware, async (req, res) => {
 router.post("/manuals", authMiddleware, async (req, res) => {
   try {
     const userId = req.user!.id;
-    const { titulo, conteudo } = req.body;
+    const { titulo, conteudo, isGlobal } = req.body;
 
     if (!titulo || !conteudo) {
       return res.status(400).json({ error: "Título e conteúdo são obrigatórios" });
+    }
+
+    // Apenas admin pode criar manuais globais
+    let finalIsGlobal = false;
+    if (isGlobal === true) {
+      if (req.user!.role === "admin") {
+        finalIsGlobal = true;
+      } else {
+        // Se não for admin, ignora a flag ou retorna erro? Vamos ignorar e criar como pessoal por segurança/UX
+        finalIsGlobal = false; 
+      }
     }
 
     const manual = await prisma.manual.create({
@@ -1217,6 +1236,7 @@ router.post("/manuals", authMiddleware, async (req, res) => {
         userId,
         title: titulo,
         content: conteudo,
+        isGlobal: finalIsGlobal,
       },
     });
 
@@ -1231,14 +1251,32 @@ router.post("/manuals", authMiddleware, async (req, res) => {
 router.delete("/manuals/:id", authMiddleware, async (req, res) => {
   try {
     const userId = req.user!.id;
+    const userRole = req.user!.role;
     const id = req.params.id;
 
     const manual = await prisma.manual.findUnique({
       where: { id },
     });
 
-    if (!manual || manual.userId !== userId) {
+    if (!manual) {
       return res.status(404).json({ error: "Manual não encontrado" });
+    }
+
+    // Permissões de deleção:
+    // 1. Dono do manual pode deletar (seja global ou não)
+    // 2. Admin pode deletar qualquer manual (mesmo de outros, útil para moderação)
+    // 3. Usuário comum NÃO pode deletar manuais globais de terceiros
+
+    const isOwner = manual.userId === userId;
+    const isAdmin = userRole === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Sem permissão para deletar este manual" });
+    }
+
+    // Proteção extra: Se for global e eu não sou o dono, só admin pode deletar
+    if (manual.isGlobal && !isOwner && !isAdmin) {
+       return res.status(403).json({ error: "Apenas administradores podem remover manuais globais" });
     }
 
     await prisma.manual.delete({

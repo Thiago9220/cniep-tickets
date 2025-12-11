@@ -121,6 +121,7 @@ model Manual {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   content   String   @db.Text
+  isGlobal  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -182,6 +182,7 @@ export interface Manual {
   id: string;
   title: string;
   content: string;
+  isGlobal: boolean;
   createdAt: string;
   userId: number;
 }
@@ -193,7 +194,7 @@ export const manualsApi = {
     });
     return res.data;
   },
-  create: async (token: string, data: { titulo: string; conteudo: string }): Promise<Manual> => {
+  create: async (token: string, data: { titulo: string; conteudo: string; isGlobal?: boolean }): Promise<Manual> => {
     const res = await api.post<Manual>("/manuals", data, {
       headers: { Authorization: `Bearer ${token}` },
     });
