@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen } from "lucide-react";
+import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen, User, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLembretesCount } from "@/hooks/useLembretes";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,6 +17,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const lembretesCount = useLembretesCount();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { name: "Visão Geral", href: "/", icon: LayoutDashboard },
@@ -26,6 +29,37 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Documentação", href: "/docs", icon: BookOpen },
     { name: "Lembretes", href: "/reminders", icon: Bell, badge: lembretesCount.atrasados > 0 ? lembretesCount.atrasados : (lembretesCount.urgentes > 0 ? lembretesCount.urgentes : lembretesCount.pendentes), badgeColor: lembretesCount.atrasados > 0 ? "bg-red-500" : (lembretesCount.urgentes > 0 ? "bg-red-500" : "bg-orange-500") },
   ];
+
+  const UserMenu = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="w-full justify-start gap-3 px-3">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex flex-col items-start text-left">
+            <span className="text-sm font-medium truncate max-w-[140px]">
+              {user?.name || user?.email?.split("@")[0] || "Usuário"}
+            </span>
+            <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+              {user?.email}
+            </span>
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <div className="px-2 py-1.5">
+          <p className="text-sm font-medium">{user?.name || "Usuário"}</p>
+          <p className="text-xs text-muted-foreground">{user?.email}</p>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+          <LogOut className="mr-2 h-4 w-4" />
+          Sair
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const NavContent = () => (
     <div className="flex flex-col h-full py-4">
@@ -62,14 +96,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           ))}
         </nav>
       </ScrollArea>
-      <div className="px-6 mt-auto pt-4 border-t">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          GLPI: Online
-        </div>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-2">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          JIRA: Online
+      <div className="px-4 mt-auto pt-4 border-t space-y-3">
+        <UserMenu />
+        <div className="px-2 space-y-1">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            GLPI: Online
+          </div>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            JIRA: Online
+          </div>
         </div>
       </div>
     </div>

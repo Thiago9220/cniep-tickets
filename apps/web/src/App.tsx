@@ -6,6 +6,8 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { DataProvider } from "./contexts/DataContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import MonthlyReport from "./pages/MonthlyReport";
@@ -14,22 +16,40 @@ import WeeklyReport from "./pages/WeeklyReport";
 import Guide from "./pages/Guide";
 import Reminders from "./pages/Reminders";
 import Documentation from "./pages/Documentation";
+import Login from "./pages/Login";
+import GoogleCallback from "./pages/auth/GoogleCallback";
+import GithubCallback from "./pages/auth/GithubCallback";
 
-function Router() {
+function ProtectedRouter() {
   return (
-    <DashboardLayout>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/weekly" component={WeeklyReport} />
-        <Route path="/monthly" component={MonthlyReport} />
-        <Route path="/quarterly" component={QuarterlyReport} />
-        <Route path="/guide" component={Guide} />
-        <Route path="/reminders" component={Reminders} />
-        <Route path="/docs" component={Documentation} />
-        <Route component={NotFound} />
-      </Switch>
-    </DashboardLayout>
+    <ProtectedRoute>
+      <DashboardLayout>
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/weekly" component={WeeklyReport} />
+          <Route path="/monthly" component={MonthlyReport} />
+          <Route path="/quarterly" component={QuarterlyReport} />
+          <Route path="/guide" component={Guide} />
+          <Route path="/reminders" component={Reminders} />
+          <Route path="/docs" component={Documentation} />
+          <Route component={NotFound} />
+        </Switch>
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
+}
+
+function AppRouter() {
+  return (
+    <Switch>
+      <Route path="/login" component={Login} />
+      <Route path="/auth/google/callback" component={GoogleCallback} />
+      <Route path="/auth/github/callback" component={GithubCallback} />
+      <Route>
+        <ProtectedRouter />
+      </Route>
+    </Switch>
   );
 }
 
@@ -37,12 +57,14 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <DataProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </DataProvider>
+        <AuthProvider>
+          <DataProvider>
+            <TooltipProvider>
+              <Toaster />
+              <AppRouter />
+            </TooltipProvider>
+          </DataProvider>
+        </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

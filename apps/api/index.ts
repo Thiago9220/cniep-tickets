@@ -6,6 +6,7 @@ import { processExcelBuffer } from "@cniep/shared/import-excel";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import authRouter, { authMiddleware } from "./auth";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -872,7 +873,14 @@ router.post("/reports/quarterly", async (req, res) => {
   }
 });
 
+// Auth routes (public)
+app.use("/api/auth", authRouter);
+app.use("/auth", authRouter);
+
 // Mount router on /api AND / to handle Vercel rewrites or direct access
+// Protected routes - uncomment authMiddleware when ready to protect all routes
+// app.use("/api", authMiddleware, router);
+// app.use("/", authMiddleware, router);
 app.use("/api", router);
 app.use("/", router);
 

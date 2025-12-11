@@ -69,3 +69,17 @@ model Document {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model User {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  name       String?
+  password   String?  // null se usar apenas OAuth
+  provider   String?  // "google", "github", ou null para email/senha
+  providerId String?  // ID do provedor OAuth
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([email])
+  @@index([provider, providerId])
+}
