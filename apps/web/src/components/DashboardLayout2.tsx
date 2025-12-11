@@ -23,16 +23,45 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const navGroups = [ { title: "Navega��o", items: [
-    { name: "Visão Geral", href: "/", icon: LayoutDashboard },
-    { name: "Dashboard Chamados", href: "/dashboard", icon: TicketIcon },
-    { name: "Relatório Semanal", href: "/weekly", icon: Calendar },
-    { name: "Relatório Mensal", href: "/monthly", icon: BarChart3 },
-    { name: "Relatório Trimestral", href: "/quarterly", icon: PieChart },
+  const navItems = [
+    { name: "Inicio", href: "/", icon: LayoutDashboard },
+    { name: "Painel de Chamados", href: "/dashboard", icon: TicketIcon },
+    { name: "Semanal", href: "/weekly", icon: Calendar },
+    { name: "Mensal", href: "/monthly", icon: BarChart3 },
+    { name: "Trimestral", href: "/quarterly", icon: PieChart },
     { name: "Guia de Atendimento", href: "/guide", icon: BookText },
-    { name: "Documentação", href: "/docs", icon: BookOpen },
-    { name: "Lembretes", href: "/reminders", icon: Bell, badge: lembretesCount.atrasados > 0 ? lembretesCount.atrasados : (lembretesCount.urgentes > 0 ? lembretesCount.urgentes : lembretesCount.pendentes), badgeColor: lembretesCount.atrasados > 0 ? "bg-red-500" : (lembretesCount.urgentes > 0 ? "bg-red-500" : "bg-orange-500") },
-  ];
+    { name: "Documentacao", href: "/docs", icon: BookOpen },
+    {
+      name: "Lembretes",
+      href: "/reminders",
+      icon: Bell,
+      badge:
+        lembretesCount.atrasados > 0
+          ? lembretesCount.atrasados
+          : lembretesCount.urgentes > 0
+          ? lembretesCount.urgentes
+          : lembretesCount.pendentes,
+      badgeColor:
+        lembretesCount.atrasados > 0
+          ? "bg-red-500"
+          : lembretesCount.urgentes > 0
+          ? "bg-red-500"
+          : "bg-orange-500",
+    },
+  ] as const;
+
+  const envRaw = (import.meta as any).env?.VITE_APP_ENV || (import.meta as any).env?.MODE || "dev";
+  const env = String(envRaw).toLowerCase();
+  const envLabel = env.includes("prod")
+    ? "Producao"
+    : env.includes("staging") || env.includes("homolog")
+    ? "Homologacao"
+    : "Desenvolvimento";
+  const envColor = env.includes("prod")
+    ? "bg-emerald-500"
+    : env.includes("staging") || env.includes("homolog")
+    ? "bg-amber-500"
+    : "bg-slate-500";
 
   const getInitials = () => {
     if (user?.name) {
@@ -51,14 +80,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="w-full justify-start gap-3 px-3">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={(user?.avatar ? ((user.avatar.startsWith("http") ? user.avatar : (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/$/, "").replace(/\/api$/, "") + user.avatar)) : undefined)} alt={user?.name || "Avatar"} />
+            <AvatarImage
+              src={
+                user?.avatar
+                  ? user.avatar.startsWith("http")
+                    ? user.avatar
+                    : (import.meta.env.VITE_API_URL || "http://localhost:5000/api")
+                        .replace(/\/$/, "")
+                        .replace(/\/api$/, "") + user.avatar
+                  : undefined
+              }
+              alt={user?.name || "Avatar"}
+            />
             <AvatarFallback className="bg-primary/10 text-primary text-xs">
               {getInitials()}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col items-start text-left">
             <span className="text-sm font-medium truncate max-w-[140px]">
-              {user?.name || user?.email?.split("@")[0] || "Usuário"}
+              {user?.name || user?.email?.split("@")[0] || "Usuario"}
             </span>
             <span className="text-xs text-muted-foreground truncate max-w-[140px]">
               {user?.email}
@@ -68,7 +108,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
         <div className="px-2 py-1.5">
-          <p className="text-sm font-medium">{user?.name || "Usuário"}</p>
+          <p className="text-sm font-medium">{user?.name || "Usuario"}</p>
           <p className="text-xs text-muted-foreground">{user?.email}</p>
         </div>
         <DropdownMenuSeparator />
@@ -102,7 +142,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-2">Métricas de Atendimento GLPI</p>
+        <p className="text-xs text-muted-foreground mt-2">Gestao de Chamados GLPI - CNIEP</p>
+        <div className="mt-2">
+          <span className={cn("inline-flex items-center gap-2 text-xs text-white px-2 py-0.5 rounded-md", envColor)}>
+            Ambiente: {envLabel}
+          </span>
+        </div>
       </div>
       <ScrollArea className="flex-1 px-4">
         <nav className="space-y-2">
@@ -118,12 +163,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <item.icon className="h-4 w-4" />
                 {item.name}
-                {"badge" in item && item.badge > 0 && (
-                  <span className={cn(
-                    "absolute right-2 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center",
-                    item.badgeColor
-                  )}>
-                    {item.badge}
+                {"badge" in item && (item as any).badge > 0 && (
+                  <span
+                    className={cn(
+                      "absolute right-2 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center",
+                      (item as any).badgeColor
+                    )}
+                  >
+                    {(item as any).badge}
                   </span>
                 )}
               </Button>
@@ -133,9 +180,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </ScrollArea>
       <div className="px-4 mt-auto pt-4 border-t space-y-3">
         <div className="px-2">
-          <Badge variant="secondary">
-            Perfil: {user?.isAdmin ? "Administrador" : "Usuário"}
-          </Badge>
+          <Badge variant="secondary">Perfil: {user?.isAdmin ? "Administrador" : "Usuario"}</Badge>
         </div>
         <UserMenu />
         <div className="flex gap-2 px-2">
@@ -202,3 +247,4 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     </div>
   );
 }
+
