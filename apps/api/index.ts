@@ -1185,6 +1185,43 @@ router.get("/reminders/counts", authMiddleware, async (req, res) => {
   }
 });
 
+// ============== CHAT IA ==============
+
+router.post("/chat/completion", authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { contents, generationConfig } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY não configurada no servidor");
+      return res.status(500).json({ error: "Serviço de IA não configurado no servidor." });
+    }
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents,
+        generationConfig
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Erro na API do Gemini:", response.status, errorData);
+      return res.status(response.status).json({ error: errorData.error?.message || "Erro ao consultar serviço de IA" });
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Erro no endpoint de chat:", error);
+    res.status(500).json({ error: "Erro interno ao processar solicitação de IA" });
+  }
+});
+
 // ============== USER MANAGEMENT (ADMIN ONLY) ==============
 
 // Listar todos os usuários

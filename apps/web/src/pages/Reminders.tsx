@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Bell, CheckCircle2, Clock, Calendar, AlertTriangle, Repeat, Flag, Filter, Search, Tag, X, Pencil, GripVertical } from "lucide-react";
+import { Plus, Trash2, Bell, CheckCircle2, Clock, Calendar, AlertTriangle, Repeat, Flag, Filter, Search, Tag, X, Pencil, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -79,6 +79,9 @@ export default function Reminders() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [ordenacaoManual, setOrdenacaoManual] = useState(false);
+
+  // Estado para minimizar/maximizar "Novo Lembrete"
+  const [isNewReminderMinimized, setIsNewReminderMinimized] = useState(true);
 
   // Carregar lembretes do localStorage (por usuário) e resetar recorrentes
   useEffect(() => {
@@ -607,119 +610,130 @@ export default function Reminders() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Card para adicionar novo lembrete */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Novo Lembrete
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Plus className="h-4 w-4" />
+              Adicionar Lembrete
             </CardTitle>
-            <CardDescription>
-              Adicione tarefas e avisos importantes
-            </CardDescription>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsNewReminderMinimized(!isNewReminderMinimized)}
+              className="text-muted-foreground"
+            >
+              {isNewReminderMinimized ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronUp className="h-4 w-4" />
+              )}
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              placeholder="Título do lembrete..."
-              value={novoTitulo}
-              onChange={(e) => setNovoTitulo(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && adicionarLembrete()}
-            />
-            <Textarea
-              placeholder="Descrição (opcional)..."
-              value={novaDescricao}
-              onChange={(e) => setNovaDescricao(e.target.value)}
-              rows={3}
-            />
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground flex items-center gap-2">
-                <Flag className="h-4 w-4" />
-                Prioridade
-              </label>
-              <Select value={novaPrioridade} onValueChange={(v) => setNovaPrioridade(v as Prioridade)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="baixa">
-                    <span className="flex items-center gap-2">
-                      <Flag className="h-3 w-3 text-gray-500" />
-                      Baixa
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="media">
-                    <span className="flex items-center gap-2">
-                      <Flag className="h-3 w-3 text-blue-500" />
-                      Média
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="alta">
-                    <span className="flex items-center gap-2">
-                      <Flag className="h-3 w-3 text-orange-500" />
-                      Alta
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="urgente">
-                    <span className="flex items-center gap-2">
-                      <Flag className="h-3 w-3 text-red-500" />
-                      Urgente
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground flex items-center gap-2">
-                <Tag className="h-4 w-4" />
-                Categoria
-              </label>
-              <Select value={novaCategoria} onValueChange={setNovaCategoria}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sem-categoria">
-                    <span className="flex items-center gap-2 text-muted-foreground">
-                      Sem categoria
-                    </span>
-                  </SelectItem>
-                  {categoriasPreDefinidas.map((cat) => (
-                    <SelectItem key={cat.nome} value={cat.nome}>
-                      <span className="flex items-center gap-2">
-                        <span className={cn("h-2 w-2 rounded-full", cat.cor)} />
-                        {cat.nome}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-              <label className="text-sm flex items-center gap-2 cursor-pointer">
-                <Repeat className="h-4 w-4 text-blue-500" />
-                Tarefa diária (recorrente)
-              </label>
-              <Switch
-                checked={novoRecorrente}
-                onCheckedChange={setNovoRecorrente}
+          {!isNewReminderMinimized && (
+            <CardContent className="space-y-4 pt-4">
+              <Input
+                placeholder="Título do lembrete..."
+                value={novoTitulo}
+                onChange={(e) => setNovoTitulo(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && adicionarLembrete()}
               />
-            </div>
-            {!novoRecorrente && (
+              <Textarea
+                placeholder="Descrição (opcional)..."
+                value={novaDescricao}
+                onChange={(e) => setNovaDescricao(e.target.value)}
+                rows={3}
+              />
               <div className="space-y-2">
                 <label className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Data de entrega (opcional)
+                  <Flag className="h-4 w-4" />
+                  Prioridade
                 </label>
-                <Input
-                  type="date"
-                  value={novaDataEntrega}
-                  onChange={(e) => setNovaDataEntrega(e.target.value)}
+                <Select value={novaPrioridade} onValueChange={(v) => setNovaPrioridade(v as Prioridade)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="baixa">
+                      <span className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-gray-500" />
+                        Baixa
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="media">
+                      <span className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-blue-500" />
+                        Média
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="alta">
+                      <span className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-orange-500" />
+                        Alta
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="urgente">
+                      <span className="flex items-center gap-2">
+                        <Flag className="h-3 w-3 text-red-500" />
+                        Urgente
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Tag className="h-4 w-4" />
+                  Categoria
+                </label>
+                <Select value={novaCategoria} onValueChange={setNovaCategoria}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma categoria (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sem-categoria">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        Sem categoria
+                      </span>
+                    </SelectItem>
+                    {categoriasPreDefinidas.map((cat) => (
+                      <SelectItem key={cat.nome} value={cat.nome}>
+                        <span className="flex items-center gap-2">
+                          <span className={cn("h-2 w-2 rounded-full", cat.cor)} />
+                          {cat.nome}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <label className="text-sm flex items-center gap-2 cursor-pointer">
+                  <Repeat className="h-4 w-4 text-blue-500" />
+                  Tarefa diária (recorrente)
+                </label>
+                <Switch
+                  checked={novoRecorrente}
+                  onCheckedChange={setNovoRecorrente}
                 />
               </div>
-            )}
-            <Button onClick={adicionarLembrete} className="w-full">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar
-            </Button>
-          </CardContent>
+              {!novoRecorrente && (
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Data de entrega (opcional)
+                  </label>
+                  <Input
+                    type="date"
+                    value={novaDataEntrega}
+                    onChange={(e) => setNovaDataEntrega(e.target.value)}
+                  />
+                </div>
+              )}
+              <Button onClick={adicionarLembrete} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar
+              </Button>
+            </CardContent>
+          )}
         </Card>
 
         {/* Card de lembretes pendentes */}

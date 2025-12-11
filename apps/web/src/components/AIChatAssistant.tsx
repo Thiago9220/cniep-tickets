@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Bot, Copy, Send, Settings, User, X, Loader2, AlertCircle, FileText, Trash2, Plus } from "lucide-react";
+import { Bot, Copy, Send, Settings, User, X, Loader2, FileText, Trash2, Plus } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
+import { api } from "@/lib/api"; // Import the API client
+import { getAuthToken } from "@/contexts/AuthContext"; // Import auth token helper
 
 interface Message {
   id: string;
@@ -36,8 +38,6 @@ interface Manual {
 interface AIChatAssistantProps {
   contextData: string;
 }
-
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 const SYSTEM_PROMPT = `Você é um assistente especializado em atendimento do CNIEP (Cadastro Nacional de Inspeções em Estabelecimentos Penais) do CNJ (Conselho Nacional de Justiça).
 
@@ -58,9 +58,7 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("gemini_api_key") || "");
-  const [tempApiKey, setTempApiKey] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false); // Keep for manuals tab
   const [manuais, setManuais] = useState<Manual[]>(() => {
     const saved = localStorage.getItem("cniep_manuais");
     return saved ? JSON.parse(saved) : [];
@@ -75,20 +73,6 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
-
-  const saveApiKey = () => {
-    localStorage.setItem("gemini_api_key", tempApiKey);
-    setApiKey(tempApiKey);
-    setSettingsOpen(false);
-    toast.success("Chave API salva com sucesso!");
-  };
-
-  const clearApiKey = () => {
-    localStorage.removeItem("gemini_api_key");
-    setApiKey("");
-    setTempApiKey("");
-    toast.success("Chave API removida!");
-  };
 
   const adicionarManual = () => {
     if (!novoManualTitulo.trim() || !novoManualConteudo.trim()) {
@@ -135,9 +119,9 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
 
-    if (!apiKey) {
-      toast.error("Configure sua chave API do Gemini primeiro!");
-      setSettingsOpen(true);
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Você precisa estar logado para usar o assistente de IA.");
       return;
     }
 
@@ -169,14 +153,11 @@ ${conversationHistory}
 
 Usuário: ${userMessage.content}
 
-Assistente:`;
+Assistente:`
 
-      const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const response = await api.post(
+        "/chat/completion",
+        {
           contents: [
             {
               parts: [{ text: fullPrompt }],
@@ -188,16 +169,15 @@ Assistente:`;
             topP: 0.95,
             maxOutputTokens: 2048,
           },
-        }),
-      });
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `Erro na API: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const assistantContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui gerar uma resposta.";
+      const assistantContent = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui gerar uma resposta.";
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -209,20 +189,21 @@ Assistente:`;
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorMessage = (error as any).response?.data?.error || (error as Error).message || "Erro desconhecido";
       toast.error(`Erro ao consultar IA: ${errorMessage}`);
 
       const errorAssistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: `Desculpe, ocorreu um erro ao processar sua solicitação: ${errorMessage}. Por favor, tente novamente.`,
+        content: `Desculpe, ocorreu um erro ao processar sua solicitação: ${errorMessage}. Por favor, tente novamente.`, 
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorAssistantMessage]);
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, apiKey, messages, contextData, manuais]);
+  }, [input, isLoading, messages, contextData, manuais]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -260,8 +241,7 @@ Assistente:`;
                 <Button
                   variant="ghost"
                   size="icon"
-                  title="Configurações"
-                  className={cn(!apiKey && "text-amber-500")}
+                  title="Configurações (Manuais)"
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
@@ -270,15 +250,11 @@ Assistente:`;
                 <DialogHeader>
                   <DialogTitle>Configurações do Assistente</DialogTitle>
                   <DialogDescription>
-                    Configure a API e adicione conteúdo de manuais para o assistente.
+                    Adicione conteúdo de manuais para o assistente.
                   </DialogDescription>
                 </DialogHeader>
-                <Tabs defaultValue="api" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="api" className="flex items-center gap-2">
-                      <Settings className="h-4 w-4" />
-                      API
-                    </TabsTrigger>
+                <Tabs defaultValue="manuais" className="w-full">
+                  <TabsList className="grid w-full grid-cols-1">
                     <TabsTrigger value="manuais" className="flex items-center gap-2">
                       <FileText className="h-4 w-4" />
                       Manuais
@@ -289,46 +265,6 @@ Assistente:`;
                       )}
                     </TabsTrigger>
                   </TabsList>
-
-                  <TabsContent value="api" className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="api-key">Chave API do Gemini</Label>
-                      <Input
-                        id="api-key"
-                        type="password"
-                        placeholder="AIza..."
-                        value={tempApiKey}
-                        onChange={(e) => setTempApiKey(e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Obtenha sua chave em{" "}
-                        <a
-                          href="https://aistudio.google.com/apikey"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          Google AI Studio
-                        </a>
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={saveApiKey} disabled={!tempApiKey.trim()}>
-                        Salvar
-                      </Button>
-                      {apiKey && (
-                        <Button variant="destructive" onClick={clearApiKey}>
-                          Remover Chave
-                        </Button>
-                      )}
-                    </div>
-                    {apiKey && (
-                      <p className="text-sm text-green-600 flex items-center gap-1">
-                        <span className="h-2 w-2 bg-green-500 rounded-full" />
-                        Chave API configurada
-                      </p>
-                    )}
-                  </TabsContent>
 
                   <TabsContent value="manuais" className="space-y-4 py-4">
                     {/* Formulário para adicionar novo manual */}
@@ -431,16 +367,6 @@ Assistente:`;
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
-        {!apiKey && (
-          <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-amber-800 dark:text-amber-200">
-              <strong>Configure sua chave API</strong> para usar o assistente.
-              Clique no ícone de engrenagem acima.
-            </div>
-          </div>
-        )}
-
         <ScrollArea className="flex-1 pr-4 overflow-hidden" ref={scrollRef}>
           <div className="space-y-4">
             {messages.length === 0 ? (
@@ -526,17 +452,17 @@ Assistente:`;
         <div className="flex gap-2 mt-4 pt-4 border-t">
           <Textarea
             ref={textareaRef}
-            placeholder={apiKey ? "Digite sua pergunta..." : "Configure a API primeiro..."}
+            placeholder="Digite sua pergunta..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isLoading || !apiKey}
+            disabled={isLoading}
             className="min-h-[44px] max-h-[120px] resize-none"
             rows={1}
           />
           <Button
             onClick={sendMessage}
-            disabled={!input.trim() || isLoading || !apiKey}
+            disabled={!input.trim() || isLoading}
             size="icon"
             className="h-[44px] w-[44px] flex-shrink-0"
           >
