@@ -84,6 +84,8 @@ model User {
   provider   String?  // "google", "github", ou null para email/senha
   providerId String?  // ID do provedor OAuth
   role       String   @default("user") // "user" ou "admin"
+  resetPasswordToken   String?   @unique
+  resetPasswordExpires DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   reminders  Reminder[]

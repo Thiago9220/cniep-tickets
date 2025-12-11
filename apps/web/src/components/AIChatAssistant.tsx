@@ -50,7 +50,7 @@ Base de conhecimento do CNIEP:
 
 export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.isAdmin || false;
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");

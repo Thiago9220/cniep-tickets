@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,7 +147,14 @@ export default function Login() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">Senha</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="login-password">Senha</Label>
+                    <Link href="/forgot-password">
+                      <a className="text-xs text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
+                        Esqueci minha senha
+                      </a>
+                    </Link>
+                  </div>
                   <Input
                     id="login-password"
                     type="password"
@@ -221,7 +228,6 @@ export default function Login() {
                 </Button>
               </div>
             </TabsContent>
-
             <TabsContent value="register" className="space-y-4 mt-4">
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">

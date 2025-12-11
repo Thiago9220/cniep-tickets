@@ -531,48 +531,122 @@ router.put("/avatar", authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// ============== CHANGE PASSWORD ==============
-router.put("/password", authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
+import crypto from "crypto";
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: "A nova senha deve ter pelo menos 6 caracteres" });
+// ... (existing imports and code)
+
+// ============== FORGOT PASSWORD ==============
+router.post("/forgot-password", loginRateLimiter, async (req: Request, res: Response) => {
+  const logger = createLogger(req);
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email é obrigatório" });
     }
 
-    // Get user with password
     const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
+      where: { email },
     });
 
     if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
+      // Por segurança, não informamos se o email existe ou não
+      return res.json({ message: "Se o email estiver cadastrado, você receberá um link de recuperação." });
     }
 
-    // If user has password, verify current password
-    if (user.password) {
-      if (!currentPassword) {
-        return res.status(400).json({ error: "Senha atual é obrigatória" });
-      }
-
-      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ error: "Senha atual incorreta" });
-      }
+    // Se o usuário usa login social (sem senha), não permitimos reset
+    if (!user.password && user.provider) {
+        return res.json({ message: "Este email está vinculado a uma conta social (Google/GitHub). Faça login diretamente por lá." });
     }
 
-    // Hash new password and update
+    // Gerar token
+    const token = crypto.randomBytes(20).toString("hex");
+    const now = new Date();
+    const expires = new Date(now.getTime() + 3600000); // 1 hora
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: token,
+        resetPasswordExpires: expires,
+      },
+    });
+
+    // Simular envio de email (Log no console)
+    const resetLink = `${req.protocol}://localhost:3000/reset-password?token=${token}`;
+    console.log(`[EMAIL SIMULATOR] Recuperação de senha para ${email}: ${resetLink}`);
+    logger.info("Solicitação de recuperação de senha", { userId: user.id, email });
+
+    res.json({ message: "Se o email estiver cadastrado, você receberá um link de recuperação." });
+  } catch (error) {
+    logger.error("Erro no forgot-password", error);
+    res.status(500).json({ error: "Erro ao processar solicitação" });
+  }
+});
+
+// ============== RESET PASSWORD ==============
+router.post("/reset-password", loginRateLimiter, async (req: Request, res: Response) => {
+  const logger = createLogger(req);
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: "Token e nova senha são obrigatórios" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "A senha deve ter pelo menos 6 caracteres" });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        resetPasswordToken: token,
+        resetPasswordExpires: {
+          gt: new Date(), // Expiração maior que agora
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Token inválido ou expirado" });
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
-      where: { id: req.user!.id },
-      data: { password: hashedPassword },
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
     });
 
     res.json({ message: "Senha alterada com sucesso" });
   } catch (error) {
     console.error("Erro ao alterar senha:", error);
     res.status(500).json({ error: "Erro ao alterar senha" });
+  }
+});
+
+// ============== DELETE ACCOUNT ==============
+router.delete("/me", authMiddleware, async (req: Request, res: Response) => {
+  const logger = createLogger(req);
+  try {
+    const userId = req.user!.id;
+
+    // Optional: Check if user is super admin and prevent deletion to avoid lockout?
+    // For now, allowing it, but logging heavily.
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    logger.warn("Usuário excluiu a própria conta", { userId, email: req.user!.email });
+    res.json({ message: "Conta excluída com sucesso" });
+  } catch (error) {
+    logger.error("Erro ao excluir conta:", error);
+    res.status(500).json({ error: "Erro ao excluir conta" });
   }
 });
 

@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (user: User) => void;
   refreshUser: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,6 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const deleteAccount = async () => {
+    await api.delete("/auth/me");
+    logout();
+  };
+
   const updateUser = (updatedUser: User) => {
     setUser(updatedUser);
   };
@@ -113,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         updateUser,
         refreshUser,
+        deleteAccount,
       }}
     >
       {children}

@@ -1205,7 +1205,7 @@ router.get("/manuals", authMiddleware, async (req, res) => {
     });
     res.json(manuals);
   } catch (error) {
-    console.error("Erro ao listar manuais:", error);
+    console.error("Erro detalhado ao listar manuais:", error); // Log detalhado
     res.status(500).json({ error: "Erro ao listar manuais" });
   }
 });

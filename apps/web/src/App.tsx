@@ -21,6 +21,8 @@ import Login from "./pages/Login";
 import GoogleCallback from "./pages/auth/GoogleCallback";
 import GithubCallback from "./pages/auth/GithubCallback";
 import Users from "./pages/admin/Users";
+import { ForgotPassword } from "./pages/auth/ForgotPassword";
+import { ResetPassword } from "./pages/auth/ResetPassword";
 
 function ProtectedRouter() {
   return (
@@ -48,6 +50,8 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/auth/google/callback" component={GoogleCallback} />
       <Route path="/auth/github/callback" component={GithubCallback} />
       <Route>
