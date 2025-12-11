@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
-import { api } from "@/lib/api"; // Import the API client
+import { api, manualsApi, type Manual } from "@/lib/api"; // Import the API client
 import { getAuthToken } from "@/contexts/AuthContext"; // Import auth token helper
 
 interface Message {
@@ -26,13 +26,6 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
-}
-
-interface Manual {
-  id: string;
-  titulo: string;
-  conteudo: string;
-  createdAt: string;
 }
 
 interface AIChatAssistantProps {
@@ -59,10 +52,8 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false); // Keep for manuals tab
-  const [manuais, setManuais] = useState<Manual[]>(() => {
-    const saved = localStorage.getItem("cniep_manuais");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [manuais, setManuais] = useState<Manual[]>([]);
+  const [isLoadingManuais, setIsLoadingManuais] = useState(false);
   const [novoManualTitulo, setNovoManualTitulo] = useState("");
   const [novoManualConteudo, setNovoManualConteudo] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -74,45 +65,74 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
     }
   }, [messages]);
 
-  const adicionarManual = () => {
+  const carregarManuais = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    
+    setIsLoadingManuais(true);
+    try {
+      const data = await manualsApi.list(token);
+      setManuais(data);
+    } catch (error) {
+      console.error("Erro ao carregar manuais:", error);
+      toast.error("Erro ao carregar manuais salvos.");
+    } finally {
+      setIsLoadingManuais(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (settingsOpen) {
+      carregarManuais();
+    }
+  }, [settingsOpen, carregarManuais]);
+
+  const adicionarManual = async () => {
     if (!novoManualTitulo.trim() || !novoManualConteudo.trim()) {
       toast.error("Preencha o título e o conteúdo do manual!");
       return;
     }
 
-    const novoManual: Manual = {
-      id: crypto.randomUUID(),
-      titulo: novoManualTitulo.trim(),
-      conteudo: novoManualConteudo.trim(),
-      createdAt: new Date().toISOString(),
-    };
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Você precisa estar logado.");
+      return;
+    }
 
-    const novosManuais = [...manuais, novoManual];
-    setManuais(novosManuais);
-    localStorage.setItem("cniep_manuais", JSON.stringify(novosManuais));
-    setNovoManualTitulo("");
-    setNovoManualConteudo("");
-    toast.success(`Manual "${novoManual.titulo}" adicionado com sucesso!`);
+    try {
+      await manualsApi.create(token, {
+        titulo: novoManualTitulo.trim(),
+        conteudo: novoManualConteudo.trim(),
+      });
+      
+      toast.success(`Manual "${novoManualTitulo}" salvo com sucesso!`);
+      setNovoManualTitulo("");
+      setNovoManualConteudo("");
+      carregarManuais();
+    } catch (error) {
+      console.error("Erro ao salvar manual:", error);
+      toast.error("Erro ao salvar manual no servidor.");
+    }
   };
 
-  const removerManual = (id: string) => {
-    const manual = manuais.find((m) => m.id === id);
-    const novosManuais = manuais.filter((m) => m.id !== id);
-    setManuais(novosManuais);
-    localStorage.setItem("cniep_manuais", JSON.stringify(novosManuais));
-    toast.success(`Manual "${manual?.titulo}" removido!`);
-  };
+  const removerManual = async (id: string) => {
+    const token = getAuthToken();
+    if (!token) return;
 
-  const limparTodosManuais = () => {
-    setManuais([]);
-    localStorage.removeItem("cniep_manuais");
-    toast.success("Todos os manuais foram removidos!");
+    try {
+      await manualsApi.delete(token, id);
+      toast.success("Manual removido!");
+      setManuais((prev) => prev.filter((m) => m.id !== id));
+    } catch (error) {
+      console.error("Erro ao remover manual:", error);
+      toast.error("Erro ao remover manual.");
+    }
   };
 
   const getManuaisContext = () => {
     if (manuais.length === 0) return "";
     return manuais
-      .map((m) => `### ${m.titulo}\n${m.conteudo}`)
+      .map((m) => `### ${m.title}\n${m.content}`)
       .join("\n\n---\n\n");
   };
 
@@ -125,6 +145,12 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
       return;
     }
 
+    // Se não carregou manuais ainda (usuário não abriu a aba), carrega agora rapidinho
+    // Ou podemos assumir que se não abriu, não tem? Melhor garantir carregando se estiver vazio e não tiver erro
+    // Mas para simplificar, vamos assumir que o fluxo normal de uso já carregaria ou vamos carregar sob demanda
+    // Vamos carregar sob demanda se a lista estiver vazia, mas isso pode ser lento.
+    // Melhor: carregar manuais no mount do componente também (silent load)
+    
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -137,11 +163,25 @@ export function AIChatAssistant({ contextData }: AIChatAssistantProps) {
     setIsLoading(true);
 
     try {
+      // Garantir que temos os manuais mais recentes se a lista estiver vazia (primeira interação)
+      let currentManuais = manuais;
+      if (manuais.length === 0) {
+        try {
+          currentManuais = await manualsApi.list(token);
+          setManuais(currentManuais);
+        } catch (e) {
+          console.error("Falha ao carregar manuais no envio (ignorado):", e);
+        }
+      }
+
       const conversationHistory = messages
         .map((m) => `${m.role === "user" ? "Usuário" : "Assistente"}: ${m.content}`)
         .join("\n\n");
 
-      const manuaisContext = getManuaisContext();
+      const manuaisContext = currentManuais
+        .map((m) => `### ${m.title}\n${m.content}`)
+        .join("\n\n---\n\n");
+
       const fullContext = manuaisContext
         ? `${contextData}\n\n---\n\n## Manuais e Documentação Adicional:\n${manuaisContext}`
         : contextData;
@@ -205,6 +245,15 @@ Assistente:`
     }
   }, [input, isLoading, messages, contextData, manuais]);
 
+  // Carregar manuais silenciosamente ao montar o componente para estarem prontos
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+       manualsApi.list(token).then(setManuais).catch(() => {});
+    }
+  }, []);
+
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -250,7 +299,7 @@ Assistente:`
                 <DialogHeader>
                   <DialogTitle>Configurações do Assistente</DialogTitle>
                   <DialogDescription>
-                    Adicione conteúdo de manuais para o assistente.
+                    Adicione conteúdo de manuais para o assistente. (Salvos na sua conta)
                   </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="manuais" className="w-full">
@@ -305,19 +354,14 @@ Assistente:`
                     </div>
 
                     {/* Lista de manuais salvos */}
-                    {manuais.length > 0 && (
+                    {isLoadingManuais ? (
+                        <div className="flex justify-center py-4">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                    ) : manuais.length > 0 ? (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <Label>Manuais Salvos ({manuais.length})</Label>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={limparTodosManuais}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Limpar todos
-                          </Button>
                         </div>
                         <ScrollArea className="h-[150px]">
                           <div className="space-y-2 pr-4">
@@ -327,9 +371,9 @@ Assistente:`
                                 className="flex items-center justify-between p-3 border rounded-md bg-background"
                               >
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{manual.titulo}</p>
+                                  <p className="font-medium text-sm truncate">{manual.title}</p>
                                   <p className="text-xs text-muted-foreground">
-                                    {manual.conteudo.length.toLocaleString()} caracteres
+                                    {manual.content.length.toLocaleString()} caracteres
                                   </p>
                                 </div>
                                 <Button
@@ -345,12 +389,10 @@ Assistente:`
                           </div>
                         </ScrollArea>
                         <p className="text-xs text-muted-foreground text-center">
-                          Total: {manuais.reduce((acc, m) => acc + m.conteudo.length, 0).toLocaleString()} caracteres
+                          Total: {manuais.reduce((acc, m) => acc + m.content.length, 0).toLocaleString()} caracteres
                         </p>
                       </div>
-                    )}
-
-                    {manuais.length === 0 && (
+                    ) : (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         Nenhum manual adicionado ainda.
                       </p>

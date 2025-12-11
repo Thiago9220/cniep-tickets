@@ -1185,6 +1185,73 @@ router.get("/reminders/counts", authMiddleware, async (req, res) => {
   }
 });
 
+// ============== MANUAIS (Manuals) ==============
+
+// Listar manuais do usuário
+router.get("/manuals", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const manuals = await prisma.manual.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(manuals);
+  } catch (error) {
+    console.error("Erro ao listar manuais:", error);
+    res.status(500).json({ error: "Erro ao listar manuais" });
+  }
+});
+
+// Criar manual
+router.post("/manuals", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { titulo, conteudo } = req.body;
+
+    if (!titulo || !conteudo) {
+      return res.status(400).json({ error: "Título e conteúdo são obrigatórios" });
+    }
+
+    const manual = await prisma.manual.create({
+      data: {
+        userId,
+        title: titulo,
+        content: conteudo,
+      },
+    });
+
+    res.status(201).json(manual);
+  } catch (error) {
+    console.error("Erro ao criar manual:", error);
+    res.status(500).json({ error: "Erro ao criar manual" });
+  }
+});
+
+// Deletar manual
+router.delete("/manuals/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const id = req.params.id;
+
+    const manual = await prisma.manual.findUnique({
+      where: { id },
+    });
+
+    if (!manual || manual.userId !== userId) {
+      return res.status(404).json({ error: "Manual não encontrado" });
+    }
+
+    await prisma.manual.delete({
+      where: { id },
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Erro ao deletar manual:", error);
+    res.status(500).json({ error: "Erro ao deletar manual" });
+  }
+});
+
 // ============== CHAT IA ==============
 
 router.post("/chat/completion", authMiddleware, async (req: express.Request, res: express.Response) => {

@@ -177,6 +177,35 @@ export const remindersApi = {
   },
 };
 
+// Tipos para Manuais
+export interface Manual {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  userId: number;
+}
+
+export const manualsApi = {
+  list: async (token: string): Promise<Manual[]> => {
+    const res = await api.get<Manual[]>("/manuals", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  create: async (token: string, data: { titulo: string; conteudo: string }): Promise<Manual> => {
+    const res = await api.post<Manual>("/manuals", data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+  delete: async (token: string, id: string): Promise<void> => {
+    await api.delete(`/manuals/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
 // Tipos para estatísticas de período
 export interface WeeklyStatsResponse {
   weekKey: string;
