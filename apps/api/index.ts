@@ -274,7 +274,7 @@ router.post("/tickets", adminMiddleware, async (req, res) => {
 // Atualizar um ticket (apenas admin)
 router.put("/tickets/:id", adminMiddleware, async (req, res) => {
   try {
-    const { title, description, status, priority, type, url, ticketNumber, registrationDate } = req.body;
+    const { title, description, status, priority, type, stage, url, ticketNumber, registrationDate } = req.body;
     const ticket = await prisma.ticket.update({
       where: { id: parseInt(req.params.id) },
       data: {
@@ -283,6 +283,7 @@ router.put("/tickets/:id", adminMiddleware, async (req, res) => {
         status,
         priority,
         type,
+        stage,
         url,
         ticketNumber,
         registrationDate: registrationDate ? new Date(registrationDate) : undefined
@@ -291,6 +292,26 @@ router.put("/tickets/:id", adminMiddleware, async (req, res) => {
     res.json(ticket);
   } catch (error) {
     res.status(500).json({ error: "Erro ao atualizar ticket" });
+  }
+});
+
+// Atualizar apenas o stage de um ticket (apenas admin) - para o Kanban
+router.patch("/tickets/:id/stage", adminMiddleware, async (req, res) => {
+  try {
+    const { stage } = req.body;
+    const validStages = ["backlog", "desenvolvimento", "homologacao", "producao"];
+
+    if (!stage || !validStages.includes(stage)) {
+      return res.status(400).json({ error: "Stage inválido" });
+    }
+
+    const ticket = await prisma.ticket.update({
+      where: { id: parseInt(req.params.id) },
+      data: { stage },
+    });
+    res.json(ticket);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao atualizar stage do ticket" });
   }
 });
 

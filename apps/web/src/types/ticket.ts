@@ -7,6 +7,7 @@ export type TicketType =
   | "duvida_negocial"
   | "melhorias"
   | "outros";
+export type TicketStage = "backlog" | "desenvolvimento" | "homologacao" | "producao";
 
 export interface Ticket {
   id: number;
@@ -16,6 +17,7 @@ export interface Ticket {
   status: string;
   priority: string;
   type: string;
+  stage: string;
   url?: string | null;
   registrationDate?: string | null;
   createdAt: string;
@@ -79,4 +81,19 @@ export const TICKET_TYPE_COLORS: Record<string, string> = {
   duvida_negocial: "#8b5cf6",
   melhorias: "#22c55e",
   outros: "#6b7280",
+};
+
+// Stages para o Kanban
+export const TICKET_STAGE_LABELS: Record<string, string> = {
+  backlog: "Backlog",
+  desenvolvimento: "Em Desenvolvimento",
+  homologacao: "Homologação",
+  producao: "Produção",
+};
+
+export const TICKET_STAGE_COLORS: Record<string, string> = {
+  backlog: "#6b7280",
+  desenvolvimento: "#3b82f6",
+  homologacao: "#f59e0b",
+  producao: "#22c55e",
 };

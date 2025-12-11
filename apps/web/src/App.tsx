@@ -11,7 +11,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import MonthlyReport from "./pages/MonthlyReport";
-import QuarterlyReport from "./pages/QuarterlyReport";
+import KanbanBoard from "./pages/KanbanBoard";
 import WeeklyReport from "./pages/WeeklyReport";
 import Guide from "./pages/Guide";
 import Reminders from "./pages/Reminders";
@@ -33,7 +33,7 @@ function ProtectedRouter() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/weekly" component={WeeklyReport} />
           <Route path="/monthly" component={MonthlyReport} />
-          <Route path="/quarterly" component={QuarterlyReport} />
+          <Route path="/kanban" component={KanbanBoard} />
           <Route path="/guide" component={Guide} />
           <Route path="/reminders" component={Reminders} />
           <Route path="/docs" component={Documentation} />
