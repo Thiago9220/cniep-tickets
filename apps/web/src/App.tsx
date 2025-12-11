@@ -20,6 +20,7 @@ import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import GoogleCallback from "./pages/auth/GoogleCallback";
 import GithubCallback from "./pages/auth/GithubCallback";
+import Users from "./pages/admin/Users";
 
 function ProtectedRouter() {
   return (
@@ -35,6 +36,7 @@ function ProtectedRouter() {
           <Route path="/reminders" component={Reminders} />
           <Route path="/docs" component={Documentation} />
           <Route path="/profile" component={Profile} />
+          <Route path="/admin/users" component={Users} />
           <Route component={NotFound} />
         </Switch>
       </DashboardLayout>

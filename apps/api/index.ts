@@ -1185,6 +1185,65 @@ router.get("/reminders/counts", authMiddleware, async (req, res) => {
   }
 });
 
+// ============== USER MANAGEMENT (ADMIN ONLY) ==============
+
+// Listar todos os usuários
+router.get("/users", adminMiddleware, async (_req: express.Request, res: express.Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        role: true,
+        provider: true,
+        createdAt: true,
+        _count: {
+          select: { documents: true }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(users);
+  } catch (error) {
+    console.error("Erro ao listar usuários:", error);
+    res.status(500).json({ error: "Erro ao listar usuários" });
+  }
+});
+
+// Atualizar papel do usuário
+router.patch("/users/:id/role", adminMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { role } = req.body;
+
+    if (!["user", "admin"].includes(role)) {
+      return res.status(400).json({ error: "Papel inválido. Use 'user' ou 'admin'." });
+    }
+
+    // Prevenir que um usuário remova seu próprio admin (segurança básica)
+    if (userId === req.user!.id && role !== "admin") {
+      return res.status(400).json({ error: "Você não pode remover seu próprio privilégio de administrador." });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: {
+        id: true,
+        email: true,
+        role: true
+      }
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error("Erro ao atualizar papel do usuário:", error);
+    res.status(500).json({ error: "Erro ao atualizar papel do usuário" });
+  }
+});
+
 // Ensure multer and other errors return JSON consistently
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err) {

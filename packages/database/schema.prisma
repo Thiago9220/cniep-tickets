@@ -83,6 +83,7 @@ model User {
   avatar     String?  // URL da foto de perfil
   provider   String?  // "google", "github", ou null para email/senha
   providerId String?  // ID do provedor OAuth
+  role       String   @default("user") // "user" ou "admin"
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   reminders  Reminder[]

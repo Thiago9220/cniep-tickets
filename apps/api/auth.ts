@@ -9,7 +9,7 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "cniep-tickets-secret-key-2025";
 const JWT_EXPIRES_IN = "7d";
 
-// Lista de emails com permissão de admin
+// Lista de emails com permissão de admin (Super Admins)
 const ADMIN_EMAILS = [
   "thiago.ramos.pro@gmail.com",
 ];
@@ -22,15 +22,16 @@ declare global {
         id: number;
         email: string;
         name: string | null;
+        role: string;
       };
     }
   }
 }
 
 // Helper to generate JWT
-function generateToken(user: { id: number; email: string; name: string | null }) {
+function generateToken(user: { id: number; email: string; name: string | null; role: string }) {
   return jwt.sign(
-    { id: user.id, email: user.email, name: user.name },
+    { id: user.id, email: user.email, name: user.name, role: user.role },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -56,6 +57,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
       id: number;
       email: string;
       name: string | null;
+      role: string;
     };
 
     req.user = decoded;
@@ -86,12 +88,16 @@ export function adminMiddleware(req: Request, res: Response, next: NextFunction)
       id: number;
       email: string;
       name: string | null;
+      role: string;
     };
 
     req.user = decoded;
 
-    // Verifica se é admin
-    if (!ADMIN_EMAILS.includes(decoded.email)) {
+    // Verifica se é admin (pelo role ou pela lista de super admins)
+    const isSuperAdmin = ADMIN_EMAILS.includes(decoded.email);
+    const isAdminRole = decoded.role === "admin";
+
+    if (!isSuperAdmin && !isAdminRole) {
       return res.status(403).json({ error: "Acesso restrito a administradores" });
     }
 
@@ -130,11 +136,15 @@ router.post("/register", loginRateLimiter, async (req: Request, res: Response) =
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
+    // Se o email estiver na lista de super admins, define como admin automaticamente
+    const role = ADMIN_EMAILS.includes(email) ? "admin" : "user";
+
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name: name || null,
+        role,
       },
     });
 
@@ -147,6 +157,7 @@ router.post("/register", loginRateLimiter, async (req: Request, res: Response) =
         id: user.id,
         email: user.email,
         name: user.name,
+        role: user.role,
       },
       token,
     });
@@ -192,8 +203,16 @@ router.post("/login", loginRateLimiter, async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Email ou senha incorretos" });
     }
 
+    // Check if should assume admin role from hardcoded list (legacy support)
+    if (ADMIN_EMAILS.includes(user.email) && user.role !== "admin") {
+       // Opcional: Auto-promover no DB? Por enquanto vamos apenas garantir que o token tenha a role correta se ele for superadmin
+    }
+    
+    // Override role for token generation if super admin
+    const tokenRole = ADMIN_EMAILS.includes(user.email) ? "admin" : user.role;
+    
     // Generate token
-    const token = generateToken(user);
+    const token = generateToken({ ...user, role: tokenRole });
 
     logger.info("Login bem-sucedido", { userId: user.id, email: user.email });
     res.json({
@@ -201,6 +220,7 @@ router.post("/login", loginRateLimiter, async (req: Request, res: Response) => {
         id: user.id,
         email: user.email,
         name: user.name,
+        role: tokenRole,
       },
       token,
     });
@@ -252,12 +272,14 @@ router.post("/oauth/google", loginRateLimiter, async (req: Request, res: Respons
 
     if (!user) {
       // Create new user
+      const role = ADMIN_EMAILS.includes(googleUser.email) ? "admin" : "user";
       user = await prisma.user.create({
         data: {
           email: googleUser.email,
           name: googleUser.name,
           provider: "google",
           providerId: googleUser.sub,
+          role,
         },
       });
       logger.info("Novo usuário criado via Google OAuth", { userId: user.id, email: user.email });
@@ -274,8 +296,11 @@ router.post("/oauth/google", loginRateLimiter, async (req: Request, res: Respons
       logger.info("Conta vinculada ao Google", { userId: user.id, email: user.email });
     }
 
+    // Override role for token if super admin
+    const tokenRole = ADMIN_EMAILS.includes(user.email) ? "admin" : user.role;
+
     // Generate token
-    const token = generateToken(user);
+    const token = generateToken({ ...user, role: tokenRole });
 
     logger.info("Login via Google bem-sucedido", { userId: user.id, email: user.email });
     res.json({
@@ -283,6 +308,7 @@ router.post("/oauth/google", loginRateLimiter, async (req: Request, res: Respons
         id: user.id,
         email: user.email,
         name: user.name,
+        role: tokenRole,
       },
       token,
     });
@@ -372,12 +398,14 @@ router.post("/oauth/github", loginRateLimiter, async (req: Request, res: Respons
 
     if (!user) {
       // Create new user
+      const role = ADMIN_EMAILS.includes(email) ? "admin" : "user";
       user = await prisma.user.create({
         data: {
           email,
           name: githubUser.name || githubUser.login,
           provider: "github",
           providerId: String(githubUser.id),
+          role,
         },
       });
       logger.info("Novo usuário criado via GitHub OAuth", { userId: user.id, email: user.email });
@@ -394,8 +422,11 @@ router.post("/oauth/github", loginRateLimiter, async (req: Request, res: Respons
       logger.info("Conta vinculada ao GitHub", { userId: user.id, email: user.email });
     }
 
+    // Override role for token if super admin
+    const tokenRole = ADMIN_EMAILS.includes(user.email) ? "admin" : user.role;
+
     // Generate token
-    const token = generateToken(user);
+    const token = generateToken({ ...user, role: tokenRole });
 
     logger.info("Login via GitHub bem-sucedido", { userId: user.id, email: user.email });
     res.json({
@@ -403,6 +434,7 @@ router.post("/oauth/github", loginRateLimiter, async (req: Request, res: Respons
         id: user.id,
         email: user.email,
         name: user.name,
+        role: tokenRole,
       },
       token,
     });
@@ -423,6 +455,7 @@ router.get("/me", authMiddleware, async (req: Request, res: Response) => {
         name: true,
         avatar: true,
         provider: true,
+        role: true,
         createdAt: true,
       },
     });
@@ -434,7 +467,7 @@ router.get("/me", authMiddleware, async (req: Request, res: Response) => {
     // Adiciona flag isAdmin
     res.json({
       ...user,
-      isAdmin: isAdminEmail(user.email),
+      isAdmin: user.role === "admin" || ADMIN_EMAILS.includes(user.email),
     });
   } catch (error) {
     console.error("Erro ao buscar usuário:", error);
@@ -456,6 +489,7 @@ router.put("/profile", authMiddleware, async (req: Request, res: Response) => {
         name: true,
         avatar: true,
         provider: true,
+        role: true,
         createdAt: true,
       },
     });
@@ -485,6 +519,7 @@ router.put("/avatar", authMiddleware, async (req: Request, res: Response) => {
         name: true,
         avatar: true,
         provider: true,
+        role: true,
         createdAt: true,
       },
     });

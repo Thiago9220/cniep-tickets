@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, FolderOpen, User, LogOut, Settings, Moon, Sun } from "lucide-react";
+import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, FolderOpen, User, LogOut, Settings, Moon, Sun, Shield } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -49,6 +49,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           : "bg-orange-500",
     },
   ] as const;
+
+  const adminNavItems = [
+    { name: "Gerenciar Usuários", href: "/admin/users", icon: Shield },
+  ];
 
   const envRaw = (import.meta as any).env?.VITE_APP_ENV || (import.meta as any).env?.MODE || "dev";
   const env = String(envRaw).toLowerCase();
@@ -176,6 +180,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </Button>
             </Link>
           ))}
+
+          {user?.isAdmin && (
+            <>
+              <div className="pt-4 pb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Administração
+              </div>
+              {adminNavItems.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant={location === item.href ? "secondary" : "ghost"}
+                    className={cn(
+                      "w-full justify-start gap-3 relative",
+                      location === item.href && "bg-secondary text-secondary-foreground font-medium"
+                    )}
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.name}
+                  </Button>
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
       </ScrollArea>
       <div className="px-4 mt-auto pt-4 border-t space-y-3">
