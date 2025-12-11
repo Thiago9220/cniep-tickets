@@ -21,7 +21,18 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Shield, ShieldAlert, User as UserIcon } from "lucide-react";
+import { Loader2, Shield, ShieldAlert, User as UserIcon, Lock } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// Lista de super admins (deve bater com o backend)
+const SUPER_ADMIN_EMAILS = [
+  "thiago.ramos.pro@gmail.com",
+];
 
 interface User {
   id: number;
@@ -95,6 +106,8 @@ export default function Users() {
     }
   };
 
+  const isSuperAdmin = (email: string) => SUPER_ADMIN_EMAILS.includes(email);
+
   if (isAuthLoading || (isAuthenticated && user?.isAdmin && isLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -134,62 +147,89 @@ export default function Users() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={u.avatar || undefined} />
-                          <AvatarFallback>{u.name?.charAt(0) || u.email.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{u.name || "Sem nome"}</span>
-                          <span className="text-xs text-muted-foreground">{u.email}</span>
-                          {u.provider && (
-                            <span className="text-[10px] text-muted-foreground mt-0.5 capitalize">
-                              Via {u.provider}
-                            </span>
+                {users.map((u) => {
+                  const isSuper = isSuperAdmin(u.email);
+                  return (
+                    <TableRow key={u.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={u.avatar || undefined} />
+                            <AvatarFallback>{u.name?.charAt(0) || u.email.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{u.name || "Sem nome"}</span>
+                              {isSuper && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-amber-500 text-amber-600 bg-amber-50 gap-1">
+                                        <Shield className="h-2 w-2" />
+                                        SUPER
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Super Administrador (Protegido)</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">{u.email}</span>
+                            {u.provider && (
+                              <span className="text-[10px] text-muted-foreground mt-0.5 capitalize">
+                                Via {u.provider}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(u.createdAt).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {u._count?.documents || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="w-[140px]">
+                          {isSuper ? (
+                            <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground border rounded-md bg-muted/50 cursor-not-allowed">
+                              <Lock className="h-3 w-3" />
+                              <span>Admin</span>
+                            </div>
+                          ) : (
+                            <Select
+                              value={u.role}
+                              onValueChange={(value) => handleRoleChange(u.id, value)}
+                              disabled={user?.id === u.id} // Impede alterar o próprio papel
+                            >
+                              <SelectTrigger className={u.role === "admin" ? "border-primary/50 bg-primary/5" : ""}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="user">
+                                  <div className="flex items-center gap-2">
+                                    <UserIcon className="h-4 w-4 text-muted-foreground" />
+                                    <span>Usuário</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="admin">
+                                  <div className="flex items-center gap-2">
+                                    <ShieldAlert className="h-4 w-4 text-primary" />
+                                    <span>Admin</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                           )}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(u.createdAt).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-normal">
-                        {u._count?.documents || 0}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="w-[140px]">
-                        <Select
-                          value={u.role}
-                          onValueChange={(value) => handleRoleChange(u.id, value)}
-                          disabled={user?.id === u.id} // Impede alterar o próprio papel
-                        >
-                          <SelectTrigger className={u.role === "admin" ? "border-primary/50 bg-primary/5" : ""}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">
-                              <div className="flex items-center gap-2">
-                                <UserIcon className="h-4 w-4 text-muted-foreground" />
-                                <span>Usuário</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="admin">
-                              <div className="flex items-center gap-2">
-                                <ShieldAlert className="h-4 w-4 text-primary" />
-                                <span>Admin</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

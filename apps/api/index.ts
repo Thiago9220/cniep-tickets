@@ -6,7 +6,7 @@ import { processExcelBuffer } from "@cniep/shared/import-excel";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import authRouter, { authMiddleware, adminMiddleware } from "./auth";
+import authRouter, { authMiddleware, adminMiddleware, isAdminEmail } from "./auth";
 import {
   helmetMiddleware,
   getCorsConfig,
@@ -1225,6 +1225,21 @@ router.patch("/users/:id/role", adminMiddleware, async (req: express.Request, re
     // Prevenir que um usuário remova seu próprio admin (segurança básica)
     if (userId === req.user!.id && role !== "admin") {
       return res.status(400).json({ error: "Você não pode remover seu próprio privilégio de administrador." });
+    }
+
+    // Buscar usuário alvo para verificar se é Super Admin
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    // Proteger Super Admin de ter seu papel alterado
+    if (isAdminEmail(targetUser.email)) {
+      return res.status(403).json({ error: "Não é possível alterar o papel de um Super Admin." });
     }
 
     const user = await prisma.user.update({
