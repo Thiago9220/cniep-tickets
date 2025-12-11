@@ -6,7 +6,19 @@ import { processExcelBuffer } from "@cniep/shared/import-excel";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import authRouter, { authMiddleware, adminMiddleware, isAdminEmail } from "./auth";
+import authRouter, { authMiddleware, adminMiddleware } from "./auth";
+import {
+  helmetMiddleware,
+  getCorsConfig,
+  requestIdMiddleware,
+  loggingMiddleware,
+  generalRateLimiter,
+  uploadRateLimiter,
+  createLogger,
+  DOCUMENT_UPLOAD_CONFIG,
+  documentFileFilter,
+  scanFileWithClamAV,
+} from "./security";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,26 +38,29 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: function (_req, _file, cb) {
     cb(null, UPLOADS_DIR)
   },
-  filename: function (req, file, cb) {
+  filename: function (_req, file, cb) {
     // Save with timestamp to avoid collisions
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
     cb(null, uniqueSuffix + '-' + file.originalname)
   }
 })
 
-const uploadDocs = multer({ storage: storage });
-
-app.use(cors());
-app.use(express.json());
-
-// Log middleware para debug
-app.use((req, _res, next) => {
-  console.log(`[API] ${req.method} ${req.url}`);
-  next();
+const uploadDocs = multer({
+  storage: storage,
+  limits: { fileSize: DOCUMENT_UPLOAD_CONFIG.maxSize },
+  fileFilter: documentFileFilter,
 });
+
+// Security middlewares
+app.use(requestIdMiddleware);
+app.use(helmetMiddleware);
+app.use(cors(getCorsConfig()));
+app.use(express.json());
+app.use(generalRateLimiter);
+app.use(loggingMiddleware);
 
 router.get("/hello", (_req, res) => {
   res.json({ message: "API funcionando" });
@@ -54,18 +69,29 @@ router.get("/hello", (_req, res) => {
 // ============== DOCUMENTOS ==============
 
 // Upload de documento
-router.post("/documents", authMiddleware, uploadDocs.single("file"), async (req, res) => {
+router.post("/documents", authMiddleware, uploadRateLimiter, uploadDocs.single("file"), async (req, res) => {
+  const logger = createLogger(req);
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Nenhum arquivo enviado" });
     }
 
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Usuário não autenticado" });
     }
 
     const { originalname, filename, size, mimetype } = req.file;
+
+    // Optional ClamAV scan in production
+    const filePath = path.join(UPLOADS_DIR, filename);
+    const scanResult = await scanFileWithClamAV(filePath);
+    if (!scanResult.clean) {
+      // Delete infected file
+      fs.unlinkSync(filePath);
+      logger.warn("Arquivo infectado detectado", { filename, scanResult: scanResult.message });
+      return res.status(400).json({ error: "Arquivo rejeitado por motivos de segurança" });
+    }
 
     const document = await prisma.document.create({
       data: {
@@ -78,17 +104,18 @@ router.post("/documents", authMiddleware, uploadDocs.single("file"), async (req,
       }
     });
 
+    logger.info("Documento criado", { documentId: document.id, filename, size });
     res.status(201).json(document);
   } catch (error) {
-    console.error("Erro ao fazer upload de documento:", error);
+    logger.error("Erro ao fazer upload de documento", error);
     res.status(500).json({ error: "Erro ao salvar documento" });
   }
 });
 
 // Listar documentos do usuário
-router.get("/documents", authMiddleware, async (req, res) => {
+router.get("/documents", async (req, res) => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Usuário não autenticado" });
     }
@@ -105,9 +132,9 @@ router.get("/documents", authMiddleware, async (req, res) => {
 });
 
 // Download de documento
-router.get("/documents/:id/download", authMiddleware, async (req, res) => {
+router.get("/documents/:id/download", async (req, res) => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Usuário não autenticado" });
     }
@@ -139,9 +166,9 @@ router.get("/documents/:id/download", authMiddleware, async (req, res) => {
 });
 
 // Deletar documento
-router.delete("/documents/:id", authMiddleware, async (req, res) => {
+router.delete("/documents/:id", async (req, res) => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Usuário não autenticado" });
     }
@@ -907,19 +934,17 @@ router.post("/reports/quarterly", async (req, res) => {
   }
 });
 
-// Serve uploaded avatars
-app.use("/uploads", express.static(UPLOADS_DIR));
 
 // Avatar upload route
 const avatarStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: function (_req, _file, cb) {
     const avatarsDir = path.join(UPLOADS_DIR, "avatars");
     if (!fs.existsSync(avatarsDir)) {
       fs.mkdirSync(avatarsDir, { recursive: true });
     }
     cb(null, avatarsDir);
   },
-  filename: function (req, file, cb) {
+  filename: function (_req, file, cb) {
     const ext = path.extname(file.originalname);
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, `avatar-${uniqueSuffix}${ext}`);
@@ -929,7 +954,7 @@ const avatarStorage = multer.diskStorage({
 const uploadAvatar = multer({
   storage: avatarStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     const allowedTypes = [
       "image/jpeg",
       "image/jpg",
@@ -975,16 +1000,16 @@ router.post("/auth/avatar/upload", authMiddleware, uploadAvatar.single("avatar")
   }
 });
 
-// Auth routes (public)
+// Auth routes (public) - rate limited for login
 app.use("/api/auth", authRouter);
 app.use("/auth", authRouter);
 
-// Mount router on /api AND / to handle Vercel rewrites or direct access
-// Protected routes - uncomment authMiddleware when ready to protect all routes
-// app.use("/api", authMiddleware, router);
-// app.use("/", authMiddleware, router);
-app.use("/api", router);
-app.use("/", router);
+// Serve uploaded avatars (static files - public but helmet protected)
+app.use("/uploads", express.static(UPLOADS_DIR));
+
+// Mount router on /api AND / with authMiddleware for protected routes by default
+app.use("/api", authMiddleware, router);
+app.use("/", authMiddleware, router);
 
 // ============== LEMBRETES (Reminders) ==============
 

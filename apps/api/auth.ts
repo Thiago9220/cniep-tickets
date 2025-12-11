@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import prisma from "./db";
+import { loginRateLimiter, createLogger } from "./security";
 
 const router = Router();
 
@@ -106,7 +107,8 @@ export function isAdminEmail(email: string): boolean {
 }
 
 // ============== REGISTER ==============
-router.post("/register", async (req: Request, res: Response) => {
+router.post("/register", loginRateLimiter, async (req: Request, res: Response) => {
+  const logger = createLogger(req);
   try {
     const { email, password, name } = req.body;
 
@@ -120,6 +122,7 @@ router.post("/register", async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
+      logger.warn("Tentativa de registro com email já existente", { email });
       return res.status(400).json({ error: "Este email já está cadastrado" });
     }
 
@@ -138,6 +141,7 @@ router.post("/register", async (req: Request, res: Response) => {
     // Generate token
     const token = generateToken(user);
 
+    logger.info("Novo usuário registrado", { userId: user.id, email: user.email });
     res.status(201).json({
       user: {
         id: user.id,
@@ -147,13 +151,14 @@ router.post("/register", async (req: Request, res: Response) => {
       token,
     });
   } catch (error) {
-    console.error("Erro no registro:", error);
+    logger.error("Erro no registro", error);
     res.status(500).json({ error: "Erro ao criar usuário" });
   }
 });
 
 // ============== LOGIN ==============
-router.post("/login", async (req: Request, res: Response) => {
+router.post("/login", loginRateLimiter, async (req: Request, res: Response) => {
+  const logger = createLogger(req);
   try {
     const { email, password } = req.body;
 
@@ -167,11 +172,13 @@ router.post("/login", async (req: Request, res: Response) => {
     });
 
     if (!user) {
+      logger.warn("Tentativa de login com email inexistente", { email });
       return res.status(401).json({ error: "Email ou senha incorretos" });
     }
 
     // Check if user has password (might be OAuth only)
     if (!user.password) {
+      logger.warn("Tentativa de login com senha em conta OAuth", { email });
       return res.status(401).json({
         error: "Esta conta usa login social. Use Google ou GitHub para entrar.",
       });
@@ -181,12 +188,14 @@ router.post("/login", async (req: Request, res: Response) => {
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
+      logger.warn("Tentativa de login com senha incorreta", { email });
       return res.status(401).json({ error: "Email ou senha incorretos" });
     }
 
     // Generate token
     const token = generateToken(user);
 
+    logger.info("Login bem-sucedido", { userId: user.id, email: user.email });
     res.json({
       user: {
         id: user.id,
@@ -196,13 +205,14 @@ router.post("/login", async (req: Request, res: Response) => {
       token,
     });
   } catch (error) {
-    console.error("Erro no login:", error);
+    logger.error("Erro no login", error);
     res.status(500).json({ error: "Erro ao fazer login" });
   }
 });
 
 // ============== OAUTH GOOGLE ==============
-router.post("/oauth/google", async (req: Request, res: Response) => {
+router.post("/oauth/google", loginRateLimiter, async (req: Request, res: Response) => {
+  const logger = createLogger(req);
   try {
     const { token: googleToken } = req.body;
 
@@ -219,6 +229,7 @@ router.post("/oauth/google", async (req: Request, res: Response) => {
     );
 
     if (!googleResponse.ok) {
+      logger.warn("Token do Google inválido");
       return res.status(401).json({ error: "Token do Google inválido" });
     }
 
@@ -249,6 +260,7 @@ router.post("/oauth/google", async (req: Request, res: Response) => {
           providerId: googleUser.sub,
         },
       });
+      logger.info("Novo usuário criado via Google OAuth", { userId: user.id, email: user.email });
     } else if (!user.provider) {
       // Link existing email user to Google
       user = await prisma.user.update({
@@ -259,11 +271,13 @@ router.post("/oauth/google", async (req: Request, res: Response) => {
           name: user.name || googleUser.name,
         },
       });
+      logger.info("Conta vinculada ao Google", { userId: user.id, email: user.email });
     }
 
     // Generate token
     const token = generateToken(user);
 
+    logger.info("Login via Google bem-sucedido", { userId: user.id, email: user.email });
     res.json({
       user: {
         id: user.id,
@@ -273,13 +287,14 @@ router.post("/oauth/google", async (req: Request, res: Response) => {
       token,
     });
   } catch (error) {
-    console.error("Erro no OAuth Google:", error);
+    logger.error("Erro no OAuth Google", error);
     res.status(500).json({ error: "Erro ao autenticar com Google" });
   }
 });
 
 // ============== OAUTH GITHUB ==============
-router.post("/oauth/github", async (req: Request, res: Response) => {
+router.post("/oauth/github", loginRateLimiter, async (req: Request, res: Response) => {
+  const logger = createLogger(req);
   try {
     const { code } = req.body;
 
@@ -314,6 +329,7 @@ router.post("/oauth/github", async (req: Request, res: Response) => {
     const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
 
     if (tokenData.error || !tokenData.access_token) {
+      logger.warn("Código do GitHub inválido");
       return res.status(401).json({ error: "Código do GitHub inválido" });
     }
 
@@ -364,6 +380,7 @@ router.post("/oauth/github", async (req: Request, res: Response) => {
           providerId: String(githubUser.id),
         },
       });
+      logger.info("Novo usuário criado via GitHub OAuth", { userId: user.id, email: user.email });
     } else if (!user.provider) {
       // Link existing email user to GitHub
       user = await prisma.user.update({
@@ -374,11 +391,13 @@ router.post("/oauth/github", async (req: Request, res: Response) => {
           name: user.name || githubUser.name || githubUser.login,
         },
       });
+      logger.info("Conta vinculada ao GitHub", { userId: user.id, email: user.email });
     }
 
     // Generate token
     const token = generateToken(user);
 
+    logger.info("Login via GitHub bem-sucedido", { userId: user.id, email: user.email });
     res.json({
       user: {
         id: user.id,
@@ -388,7 +407,7 @@ router.post("/oauth/github", async (req: Request, res: Response) => {
       token,
     });
   } catch (error) {
-    console.error("Erro no OAuth GitHub:", error);
+    logger.error("Erro no OAuth GitHub", error);
     res.status(500).json({ error: "Erro ao autenticar com GitHub" });
   }
 });
