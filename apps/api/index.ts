@@ -1197,7 +1197,35 @@ router.post("/chat/completion", authMiddleware, async (req: express.Request, res
       return res.status(500).json({ error: "Serviço de IA não configurado no servidor." });
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const fetchWithRetry = async (url: string, options: any, retries = 3, initialDelay = 1000) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const res = await fetch(url, options);
+          
+          // Se for sucesso ou erro que não deve ser retentado (ex: 400 Bad Request), retorna
+          if (res.ok || (res.status !== 429 && res.status !== 503)) {
+            return res;
+          }
+
+          // Se for o último retry, retorna a resposta de erro
+          if (i === retries - 1) return res;
+
+          // Backoff exponencial: 1s, 2s, 4s...
+          const delay = initialDelay * Math.pow(2, i);
+          console.warn(`Gemini API overloaded/busy (Status ${res.status}). Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } catch (error) {
+          // Erros de rede também podem ser retentados
+          if (i === retries - 1) throw error;
+          const delay = initialDelay * Math.pow(2, i);
+          console.warn(`Network error calling Gemini. Retrying in ${delay}ms...`, error);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+      throw new Error("Max retries reached");
+    };
+
+    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
