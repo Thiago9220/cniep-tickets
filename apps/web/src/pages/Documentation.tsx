@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { getAuthToken } from "@/contexts/AuthContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   File,
   Download,
@@ -15,6 +15,13 @@ import {
   Loader2,
   FileText
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Label } from "@/components/ui/label";
 
 interface Document {
   id: number;
@@ -23,6 +30,7 @@ interface Document {
   fileType: string;
   size: number;
   url: string;
+  category?: string;
   createdAt: string;
 }
 
@@ -30,6 +38,7 @@ export default function Documentation() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [category, setCategory] = useState("");
 
   useEffect(() => {
     fetchDocuments();
@@ -68,6 +77,9 @@ export default function Documentation() {
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", uploadFile);
+    if (category.trim()) {
+      formData.append("category", category.trim());
+    }
 
     try {
       await api.post("/documents", formData, {
@@ -78,6 +90,7 @@ export default function Documentation() {
       });
       toast.success("Documento enviado com sucesso!");
       setUploadFile(null);
+      setCategory("");
       // Reset input
       const fileInput = document.getElementById("file-upload") as HTMLInputElement;
       if (fileInput) fileInput.value = "";
@@ -157,6 +170,20 @@ export default function Documentation() {
     return <File className="h-8 w-8 text-gray-500 flex-shrink-0" />;
   };
 
+  const groupedDocuments = useMemo(() => {
+    const groups: Record<string, Document[]> = {};
+    documents.forEach((doc) => {
+      const cat = doc.category || "Sem Categoria";
+      if (!groups[cat]) {
+        groups[cat] = [];
+      }
+      groups[cat].push(doc);
+    });
+    return groups;
+  }, [documents]);
+
+  const categories = useMemo(() => Object.keys(groupedDocuments).sort(), [groupedDocuments]);
+
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-8">
@@ -173,28 +200,39 @@ export default function Documentation() {
             <CardTitle>Repositório de Documentos</CardTitle>
           </div>
           <CardDescription>
-            Envie, baixe e gerencie seus arquivos
+            Envie, baixe e gerencie seus arquivos organizados por tópicos
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
 
           <div className="bg-muted/30 p-4 rounded-lg border border-dashed">
-            <div className="flex flex-col md:flex-row items-center gap-4">
-              <div className="flex-1 w-full">
-                <h4 className="font-medium mb-2">Adicionar novo documento</h4>
-                <div className="flex gap-2">
-                  <Input
+            <h4 className="font-medium mb-4">Adicionar novo documento</h4>
+            <div className="grid md:grid-cols-2 gap-4">
+               <div className="space-y-2">
+                 <Label htmlFor="category">Categoria / Tópico (Opcional)</Label>
+                 <Input
+                    id="category"
+                    placeholder="Ex: Contratos, Relatórios..."
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="bg-background"
+                  />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="file-upload">Arquivo</Label>
+                 <Input
                     id="file-upload"
                     type="file"
                     onChange={handleFileChange}
-                    className="bg-background"
+                    className="bg-background cursor-pointer"
                   />
-                </div>
-              </div>
+               </div>
+            </div>
+            <div className="mt-4 flex justify-end">
               <Button
                 onClick={handleUpload}
                 disabled={!uploadFile || isUploading}
-                className="w-full md:w-auto mt-auto"
+                className="w-full md:w-auto"
               >
                 {isUploading ? (
                   <>
@@ -222,34 +260,51 @@ export default function Documentation() {
                 <p>Nenhum documento encontrado.</p>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="flex items-start gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors group relative">
-                    {getFileIcon(doc.filename)}
-
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleDownload(doc)}>
-                      <h4 className="font-medium truncate" title={doc.title}>{doc.title}</h4>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span>{doc.filename.split('.').pop()?.toUpperCase()}</span>
-                        <span>•</span>
-                        <span>{formatFileSize(doc.size)}</span>
+              <Accordion type="multiple" defaultValue={categories} className="w-full space-y-4">
+                {categories.map((cat) => (
+                  <AccordionItem key={cat} value={cat} className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline hover:bg-muted/50 rounded-lg -mx-4 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Folder className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-lg">{cat}</span>
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground border">
+                          {groupedDocuments[cat].length}
+                        </span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(doc.createdAt).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-4 pb-2">
+                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {groupedDocuments[cat].map((doc) => (
+                          <div key={doc.id} className="flex items-start gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors group relative bg-background">
+                            {getFileIcon(doc.filename)}
 
-                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleDownload(doc)}>
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(doc.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleDownload(doc)}>
+                              <h4 className="font-medium truncate" title={doc.title}>{doc.title}</h4>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                <span>{doc.filename.split('.').pop()?.toUpperCase()}</span>
+                                <span>•</span>
+                                <span>{formatFileSize(doc.size)}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(doc.createdAt).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleDownload(doc)}>
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(doc.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 ))}
-              </div>
+              </Accordion>
             )}
           </div>
 

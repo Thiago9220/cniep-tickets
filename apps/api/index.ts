@@ -101,7 +101,8 @@ router.post("/documents", authMiddleware, uploadRateLimiter, uploadDocs.single("
         filename: filename,
         fileType: mimetype,
         size: size,
-        url: `/api/documents/download/${filename}`
+        url: `/api/documents/download/${filename}`,
+        category: req.body.category || undefined
       }
     });
 

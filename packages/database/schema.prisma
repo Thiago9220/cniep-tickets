@@ -68,6 +68,7 @@ model Document {
   fileType  String
   size      Int
   url       String
+  category  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
