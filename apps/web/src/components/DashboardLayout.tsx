@@ -1,14 +1,16 @@
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen, User, LogOut, Settings } from "lucide-react";
+import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen, User, LogOut, Settings, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLembretesCount } from "@/hooks/useLembretes";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -19,6 +21,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const lembretesCount = useLembretesCount();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const navItems = [
     { name: "Visão Geral", href: "/", icon: LayoutDashboard },
@@ -85,8 +88,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const NavContent = () => (
     <div className="flex flex-col h-full py-4">
       <div className="px-6 mb-6">
-        <div className="flex items-center gap-3">
-          <img src="/logo-cniep.png" alt="CNIEP" className="h-10 w-auto" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <img src="/logo-cniep.png" alt="CNIEP" className="h-10 w-auto" />
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Alternar tema"
+            onClick={() => toggleTheme?.()}
+            title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2">Métricas de Atendimento GLPI</p>
       </div>
@@ -118,6 +132,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
       </ScrollArea>
       <div className="px-4 mt-auto pt-4 border-t space-y-3">
+        <div className="px-2">
+          <Badge variant="secondary">
+            Perfil: {user?.isAdmin ? "Administrador" : "Usuário"}
+          </Badge>
+        </div>
         <UserMenu />
         <div className="flex gap-2 px-2">
           <Button
@@ -151,8 +170,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center px-4 justify-between">
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b bg-background z-50 flex items-center px-4 justify-between gap-2">
         <img src="/logo-cniep.png" alt="CNIEP" className="h-8 w-auto" />
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Alternar tema"
+          onClick={() => toggleTheme?.()}
+          title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+        >
+          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon">
