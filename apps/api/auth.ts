@@ -531,6 +531,7 @@ router.put("/avatar", authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+
 import crypto from "crypto";
 
 // ... (existing imports and code)
@@ -622,31 +623,11 @@ router.post("/reset-password", loginRateLimiter, async (req: Request, res: Respo
       },
     });
 
-    res.json({ message: "Senha alterada com sucesso" });
+    logger.info("Senha resetada com sucesso", { userId: user.id });
+    res.json({ message: "Senha alterada com sucesso. Faça login com a nova senha." });
   } catch (error) {
-    console.error("Erro ao alterar senha:", error);
-    res.status(500).json({ error: "Erro ao alterar senha" });
-  }
-});
-
-// ============== DELETE ACCOUNT ==============
-router.delete("/me", authMiddleware, async (req: Request, res: Response) => {
-  const logger = createLogger(req);
-  try {
-    const userId = req.user!.id;
-
-    // Optional: Check if user is super admin and prevent deletion to avoid lockout?
-    // For now, allowing it, but logging heavily.
-
-    await prisma.user.delete({
-      where: { id: userId },
-    });
-
-    logger.warn("Usuário excluiu a própria conta", { userId, email: req.user!.email });
-    res.json({ message: "Conta excluída com sucesso" });
-  } catch (error) {
-    logger.error("Erro ao excluir conta:", error);
-    res.status(500).json({ error: "Erro ao excluir conta" });
+    logger.error("Erro no reset-password", error);
+    res.status(500).json({ error: "Erro ao redefinir senha" });
   }
 });
 
