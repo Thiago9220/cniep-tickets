@@ -60,6 +60,28 @@ UPLOADS_DIR=C:\\cniep\\uploads
 
 O script de desenvolvimento da API carrega automaticamente o arquivo `.env`.
 
+#### Ambientes separados 
+
+API (raiz do repositório):
+- `.env.development` (usado por `pnpm dev:api`)
+- `.env.staging` (usado por `pnpm --filter @cniep/api dev:staging`)
+- `.env.production` (usado por `pnpm --filter @cniep/api start:prod`)
+
+Web (Vite):
+- `apps/web/.env.development` (usado por `pnpm --filter @cniep/web dev`)
+- `apps/web/.env.staging` (usado por `pnpm --filter @cniep/web dev:staging`)
+- `apps/web/.env.production` (usado por `pnpm --filter @cniep/web build`)
+
+Chaves típicas no front:
+```
+VITE_API_URL=http://localhost:5000/api
+VITE_APP_ENV=desenvolvimento|homologacao|producao
+```
+
+Comandos úteis (raiz):
+- `pnpm dev:all` → roda web (dev) + api (dev)
+- `pnpm dev:staging` → roda web (staging) + api (staging)
+
 ### Build
 
 ```bash
