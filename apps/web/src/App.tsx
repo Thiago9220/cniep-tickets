@@ -16,6 +16,7 @@ import WeeklyReport from "./pages/WeeklyReport";
 import Guide from "./pages/Guide";
 import Reminders from "./pages/Reminders";
 import Documentation from "./pages/Documentation";
+import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import GoogleCallback from "./pages/auth/GoogleCallback";
 import GithubCallback from "./pages/auth/GithubCallback";
@@ -33,6 +34,7 @@ function ProtectedRouter() {
           <Route path="/guide" component={Guide} />
           <Route path="/reminders" component={Reminders} />
           <Route path="/docs" component={Documentation} />
+          <Route path="/profile" component={Profile} />
           <Route component={NotFound} />
         </Switch>
       </DashboardLayout>

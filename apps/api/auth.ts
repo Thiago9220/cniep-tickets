@@ -356,6 +356,7 @@ router.get("/me", authMiddleware, async (req: Request, res: Response) => {
         id: true,
         email: true,
         name: true,
+        avatar: true,
         provider: true,
         createdAt: true,
       },
@@ -369,6 +370,105 @@ router.get("/me", authMiddleware, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Erro ao buscar usuário:", error);
     res.status(500).json({ error: "Erro ao buscar dados do usuário" });
+  }
+});
+
+// ============== UPDATE PROFILE ==============
+router.put("/profile", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { name },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        provider: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error("Erro ao atualizar perfil:", error);
+    res.status(500).json({ error: "Erro ao atualizar perfil" });
+  }
+});
+
+// ============== UPDATE AVATAR ==============
+router.put("/avatar", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { avatar } = req.body;
+
+    if (!avatar) {
+      return res.status(400).json({ error: "URL do avatar é obrigatória" });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { avatar },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        provider: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error("Erro ao atualizar avatar:", error);
+    res.status(500).json({ error: "Erro ao atualizar avatar" });
+  }
+});
+
+// ============== CHANGE PASSWORD ==============
+router.put("/password", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: "A nova senha deve ter pelo menos 6 caracteres" });
+    }
+
+    // Get user with password
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    // If user has password, verify current password
+    if (user.password) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: "Senha atual é obrigatória" });
+      }
+
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Senha atual incorreta" });
+      }
+    }
+
+    // Hash new password and update
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: "Senha alterada com sucesso" });
+  } catch (error) {
+    console.error("Erro ao alterar senha:", error);
+    res.status(500).json({ error: "Erro ao alterar senha" });
   }
 });
 

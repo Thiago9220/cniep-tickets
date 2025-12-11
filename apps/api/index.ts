@@ -873,6 +873,67 @@ router.post("/reports/quarterly", async (req, res) => {
   }
 });
 
+// Serve uploaded avatars
+app.use("/uploads", express.static(UPLOADS_DIR));
+
+// Avatar upload route
+const avatarStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const avatarsDir = path.join(UPLOADS_DIR, "avatars");
+    if (!fs.existsSync(avatarsDir)) {
+      fs.mkdirSync(avatarsDir, { recursive: true });
+    }
+    cb(null, avatarsDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, `avatar-${uniqueSuffix}${ext}`);
+  },
+});
+
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Tipo de arquivo não permitido. Use JPEG, PNG, GIF ou WebP."));
+    }
+  },
+});
+
+router.post("/auth/avatar/upload", authMiddleware, uploadAvatar.single("avatar"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhum arquivo enviado" });
+    }
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    // Update user avatar in database
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { avatar: avatarUrl },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        provider: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error("Erro ao fazer upload do avatar:", error);
+    res.status(500).json({ error: "Erro ao salvar avatar" });
+  }
+});
+
 // Auth routes (public)
 app.use("/api/auth", authRouter);
 app.use("/auth", authRouter);

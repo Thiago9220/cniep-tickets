@@ -3,9 +3,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen, User, LogOut } from "lucide-react";
+import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen, User, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLembretesCount } from "@/hooks/useLembretes";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -14,7 +15,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const lembretesCount = useLembretesCount();
   const { user, logout } = useAuth();
@@ -30,13 +31,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Lembretes", href: "/reminders", icon: Bell, badge: lembretesCount.atrasados > 0 ? lembretesCount.atrasados : (lembretesCount.urgentes > 0 ? lembretesCount.urgentes : lembretesCount.pendentes), badgeColor: lembretesCount.atrasados > 0 ? "bg-red-500" : (lembretesCount.urgentes > 0 ? "bg-red-500" : "bg-orange-500") },
   ];
 
+  const getInitials = () => {
+    if (user?.name) {
+      return user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return user?.email?.[0]?.toUpperCase() || "U";
+  };
+
   const UserMenu = () => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="w-full justify-start gap-3 px-3">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="h-4 w-4 text-primary" />
-          </div>
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.avatar || undefined} alt={user?.name || "Avatar"} />
+            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+              {getInitials()}
+            </AvatarFallback>
+          </Avatar>
           <div className="flex flex-col items-start text-left">
             <span className="text-sm font-medium truncate max-w-[140px]">
               {user?.name || user?.email?.split("@")[0] || "Usuário"}
@@ -52,6 +68,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <p className="text-sm font-medium">{user?.name || "Usuário"}</p>
           <p className="text-xs text-muted-foreground">{user?.email}</p>
         </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setLocation("/profile")}>
+          <Settings className="mr-2 h-4 w-4" />
+          Meu Perfil
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />

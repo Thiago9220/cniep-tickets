@@ -5,6 +5,7 @@ interface User {
   id: number;
   email: string;
   name: string | null;
+  avatar?: string | null;
   provider?: string | null;
 }
 
@@ -17,6 +18,8 @@ interface AuthContextType {
   loginWithGoogle: (token: string) => Promise<void>;
   loginWithGithub: (code: string) => Promise<void>;
   logout: () => void;
+  updateUser: (user: User) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,6 +88,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
+  const refreshUser = async () => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      await fetchUser(token);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -96,6 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         loginWithGithub,
         logout,
+        updateUser,
+        refreshUser,
       }}
     >
       {children}
