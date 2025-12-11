@@ -351,10 +351,10 @@ export default function Dashboard() {
             </Collapsible>
 
             {/* Tabela de tickets */}
-            <div className="border rounded-lg overflow-hidden">
-              <div className="max-h-[400px] overflow-y-auto">
+            <div className="border rounded-lg overflow-hidden relative">
+              <div className="max-h-[400px] overflow-y-auto" style={{ scrollbarGutter: "stable both-edges" }}>
                 <table className="w-full">
-                  <thead className="bg-muted/50 sticky top-0">
+                  <thead className="sticky top-0 z-20 bg-card/95 supports-[backdrop-filter]:bg-card/80 backdrop-blur shadow-sm">
                     <tr>
                       <th className="text-left p-3 text-sm font-medium">#</th>
                       <th className="text-left p-3 text-sm font-medium">Título</th>

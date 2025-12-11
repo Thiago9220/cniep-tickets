@@ -10,7 +10,11 @@ import authRouter, { authMiddleware, adminMiddleware, isAdminEmail } from "./aut
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const UPLOADS_DIR = path.join(__dirname, "uploads");
+// Allow configuring uploads directory via env var
+const DEFAULT_UPLOADS_DIR = path.join(__dirname, "uploads");
+const UPLOADS_DIR = process.env.UPLOADS_DIR
+  ? path.resolve(process.env.UPLOADS_DIR)
+  : DEFAULT_UPLOADS_DIR;
 
 // Ensure uploads dir exists
 if (!fs.existsSync(UPLOADS_DIR)){

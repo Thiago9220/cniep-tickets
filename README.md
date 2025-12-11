@@ -48,6 +48,18 @@ pnpm dev:api
 pnpm dev:all
 ```
 
+### Variáveis de ambiente
+
+Crie um arquivo `.env` na raiz do repositório para configurar opções do backend:
+
+```
+# Diretório absoluto para salvar uploads (opcional).
+# Se não definido, usa apps/api/uploads dentro do projeto.
+UPLOADS_DIR=C:\\cniep\\uploads
+```
+
+O script de desenvolvimento da API carrega automaticamente o arquivo `.env`.
+
 ### Build
 
 ```bash

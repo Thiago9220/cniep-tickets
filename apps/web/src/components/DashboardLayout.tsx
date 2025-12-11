@@ -119,15 +119,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </ScrollArea>
       <div className="px-4 mt-auto pt-4 border-t space-y-3">
         <UserMenu />
-        <div className="px-2 space-y-1">
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            GLPI: Online
-          </div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            JIRA: Online
-          </div>
+        <div className="flex gap-2 px-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 justify-start gap-2"
+            onClick={() => setLocation("/profile")}
+          >
+            <User className="h-4 w-4" />
+            Meu Perfil
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="flex-1 justify-start gap-2"
+            onClick={logout}
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </Button>
         </div>
       </div>
     </div>

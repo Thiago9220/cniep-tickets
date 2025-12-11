@@ -15,7 +15,8 @@
     "db:generate": "prisma generate --schema=./packages/database/schema.prisma",
     "db:push": "prisma db push --schema=./packages/database/schema.prisma",
     "db:migrate": "prisma migrate dev --schema=./packages/database/schema.prisma",
-    "db:studio": "prisma studio --schema=./packages/database/schema.prisma"
+    "db:studio": "prisma studio --schema=./packages/database/schema.prisma",
+    "move-uploads": "node scripts/move-uploads.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
