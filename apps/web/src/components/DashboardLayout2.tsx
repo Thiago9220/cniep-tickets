@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen, User, LogOut, Settings, Moon, Sun } from "lucide-react";
+import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, FolderOpen, User, LogOut, Settings, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,7 +30,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Mensal", href: "/monthly", icon: BarChart3 },
     { name: "Trimestral", href: "/quarterly", icon: PieChart },
     { name: "Guia de Atendimento", href: "/guide", icon: BookText },
-    { name: "Documentacao", href: "/docs", icon: BookOpen },
+    { name: "Meus Arquivos", href: "/docs", icon: FolderOpen },
     {
       name: "Lembretes",
       href: "/reminders",

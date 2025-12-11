@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, BookOpen, User, LogOut, Settings, Moon, Sun } from "lucide-react";
+import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, PieChart, TicketIcon, Bell, FolderOpen, User, LogOut, Settings, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,14 +23,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const navGroups = [ { title: "Navega��o", items: [
+  const navGroups = [ { title: "Navega��o", items: [
     { name: "Visão Geral", href: "/", icon: LayoutDashboard },
     { name: "Dashboard Chamados", href: "/dashboard", icon: TicketIcon },
     { name: "Relatório Semanal", href: "/weekly", icon: Calendar },
     { name: "Relatório Mensal", href: "/monthly", icon: BarChart3 },
     { name: "Relatório Trimestral", href: "/quarterly", icon: PieChart },
     { name: "Guia de Atendimento", href: "/guide", icon: BookText },
-    { name: "Documentação", href: "/docs", icon: BookOpen },
+    { name: "Meus Arquivos", href: "/docs", icon: FolderOpen },
     { name: "Lembretes", href: "/reminders", icon: Bell, badge: lembretesCount.atrasados > 0 ? lembretesCount.atrasados : (lembretesCount.urgentes > 0 ? lembretesCount.urgentes : lembretesCount.pendentes), badgeColor: lembretesCount.atrasados > 0 ? "bg-red-500" : (lembretesCount.urgentes > 0 ? "bg-red-500" : "bg-orange-500") },
   ];
 

@@ -34,7 +34,8 @@ if (!fs.existsSync(UPLOADS_DIR)){
 }
 
 const app = express();
-const router = express.Router();
+const router = express.Router(); // Protected routes (require auth)
+const publicRouter = express.Router(); // Public routes (no auth required)
 const upload = multer({ storage: multer.memoryStorage() });
 
 const storage = multer.diskStorage({
@@ -219,8 +220,8 @@ router.post("/tickets/import", adminMiddleware, upload.single("file"), async (re
   }
 });
 
-// Listar todos os tickets
-router.get("/tickets", async (_req, res) => {
+// Listar todos os tickets (PUBLIC)
+publicRouter.get("/tickets", async (_req, res) => {
   try {
     const tickets = await prisma.ticket.findMany({
       orderBy: { createdAt: "desc" },
@@ -232,8 +233,8 @@ router.get("/tickets", async (_req, res) => {
   }
 });
 
-// Buscar um ticket por ID
-router.get("/tickets/:id", async (req, res) => {
+// Buscar um ticket por ID (PUBLIC)
+publicRouter.get("/tickets/:id", async (req, res) => {
   try {
     const ticket = await prisma.ticket.findUnique({
       where: { id: parseInt(req.params.id) },
@@ -304,10 +305,10 @@ router.delete("/tickets/:id", adminMiddleware, async (req, res) => {
   }
 });
 
-// ============== MÉTRICAS/ESTATÍSTICAS ==============
+// ============== MÉTRICAS/ESTATÍSTICAS (PUBLIC) ==============
 
 // Estatísticas gerais dos tickets
-router.get("/tickets/stats/overview", async (_req, res) => {
+publicRouter.get("/tickets/stats/overview", async (_req, res) => {
   try {
     const total = await prisma.ticket.count();
     const pendentes = await prisma.ticket.count({ where: { status: "pendente" } });
@@ -346,7 +347,7 @@ router.get("/tickets/stats/overview", async (_req, res) => {
 });
 
 // Tickets por mês (para gráfico de evolução)
-router.get("/tickets/stats/monthly", async (_req, res) => {
+publicRouter.get("/tickets/stats/monthly", async (_req, res) => {
   try {
     const tickets = await prisma.ticket.findMany({
       select: {
@@ -391,7 +392,7 @@ router.get("/tickets/stats/monthly", async (_req, res) => {
 });
 
 // Tickets pendentes de alta prioridade
-router.get("/tickets/stats/critical", async (_req, res) => {
+publicRouter.get("/tickets/stats/critical", async (_req, res) => {
   try {
     const criticalTickets = await prisma.ticket.findMany({
       where: {
@@ -409,7 +410,7 @@ router.get("/tickets/stats/critical", async (_req, res) => {
 });
 
 // Estatísticas de uma semana específica (YYYY-WXX)
-router.get("/tickets/stats/weekly/:weekKey", async (req, res) => {
+publicRouter.get("/tickets/stats/weekly/:weekKey", async (req, res) => {
   try {
     const { weekKey } = req.params;
     const [year, weekStr] = weekKey.split("-W");
@@ -504,7 +505,7 @@ router.get("/tickets/stats/weekly/:weekKey", async (req, res) => {
 });
 
 // Estatísticas de um mês específico (YYYY-MM)
-router.get("/tickets/stats/month/:monthKey", async (req, res) => {
+publicRouter.get("/tickets/stats/month/:monthKey", async (req, res) => {
   try {
     const { monthKey } = req.params;
     const [year, month] = monthKey.split("-").map(Number);
@@ -611,7 +612,7 @@ router.get("/tickets/stats/month/:monthKey", async (req, res) => {
 });
 
 // Listar semanas e meses disponíveis
-router.get("/tickets/stats/available-periods", async (_req, res) => {
+publicRouter.get("/tickets/stats/available-periods", async (_req, res) => {
   try {
     const tickets = await prisma.ticket.findMany({
       select: { registrationDate: true },
@@ -648,10 +649,10 @@ router.get("/tickets/stats/available-periods", async (_req, res) => {
   }
 });
 
-// ============== RELATÓRIOS SEMANAIS ==============
+// ============== RELATÓRIOS SEMANAIS (PUBLIC) ==============
 
 // Listar todos os relatórios semanais
-router.get("/reports/weekly", async (_req, res) => {
+publicRouter.get("/reports/weekly", async (_req, res) => {
   try {
     const reports = await prisma.weeklyReport.findMany({
       orderBy: { weekKey: "desc" },
@@ -664,7 +665,7 @@ router.get("/reports/weekly", async (_req, res) => {
 });
 
 // Buscar relatório semanal por weekKey
-router.get("/reports/weekly/:weekKey", async (req, res) => {
+publicRouter.get("/reports/weekly/:weekKey", async (req, res) => {
   try {
     const report = await prisma.weeklyReport.findUnique({
       where: { weekKey: req.params.weekKey },
@@ -680,7 +681,7 @@ router.get("/reports/weekly/:weekKey", async (req, res) => {
 });
 
 // Criar ou atualizar relatório semanal
-router.post("/reports/weekly", async (req, res) => {
+publicRouter.post("/reports/weekly", async (req, res) => {
   try {
     const { weekKey, period, data } = req.body;
     if (!weekKey || !period || !data) {
@@ -699,7 +700,7 @@ router.post("/reports/weekly", async (req, res) => {
 });
 
 // Deletar relatório semanal
-router.delete("/reports/weekly/:weekKey", async (req, res) => {
+publicRouter.delete("/reports/weekly/:weekKey", async (req, res) => {
   try {
     await prisma.weeklyReport.delete({
       where: { weekKey: req.params.weekKey },
@@ -711,10 +712,10 @@ router.delete("/reports/weekly/:weekKey", async (req, res) => {
   }
 });
 
-// ============== RELATÓRIOS MENSAIS ==============
+// ============== RELATÓRIOS MENSAIS (PUBLIC) ==============
 
 // Listar todos os relatórios mensais
-router.get("/reports/monthly", async (_req, res) => {
+publicRouter.get("/reports/monthly", async (_req, res) => {
   try {
     const reports = await prisma.monthlyReport.findMany({
       orderBy: { monthKey: "desc" },
@@ -727,7 +728,7 @@ router.get("/reports/monthly", async (_req, res) => {
 });
 
 // Criar ou atualizar relatório mensal
-router.post("/reports/monthly", async (req, res) => {
+publicRouter.post("/reports/monthly", async (req, res) => {
   try {
     const { monthKey, data } = req.body;
     if (!monthKey || !data) {
@@ -758,7 +759,7 @@ const ROOT_CAUSE_MAPPING: Record<string, string> = {
 };
 
 // Estatísticas de um trimestre específico (YYYY-QX)
-router.get("/tickets/stats/quarterly/:quarterKey", async (req, res) => {
+publicRouter.get("/tickets/stats/quarterly/:quarterKey", async (req, res) => {
   try {
     const { quarterKey } = req.params;
     const match = quarterKey.match(/^(\d{4})-Q([1-4])$/);
@@ -873,7 +874,7 @@ router.get("/tickets/stats/quarterly/:quarterKey", async (req, res) => {
 });
 
 // Listar trimestres disponíveis
-router.get("/tickets/stats/available-quarters", async (_req, res) => {
+publicRouter.get("/tickets/stats/available-quarters", async (_req, res) => {
   try {
     const tickets = await prisma.ticket.findMany({
       select: { registrationDate: true },
@@ -903,7 +904,7 @@ router.get("/tickets/stats/available-quarters", async (_req, res) => {
 // ============== RELATÓRIOS TRIMESTRAIS ==============
 
 // Listar todos os relatórios trimestrais
-router.get("/reports/quarterly", async (_req, res) => {
+publicRouter.get("/reports/quarterly", async (_req, res) => {
   try {
     const reports = await prisma.quarterlyReport.findMany({
       orderBy: { quarterKey: "desc" },
@@ -916,7 +917,7 @@ router.get("/reports/quarterly", async (_req, res) => {
 });
 
 // Criar ou atualizar relatório trimestral
-router.post("/reports/quarterly", async (req, res) => {
+publicRouter.post("/reports/quarterly", async (req, res) => {
   try {
     const { quarterKey, data } = req.body;
     if (!quarterKey || !data) {
@@ -1007,7 +1008,11 @@ app.use("/auth", authRouter);
 // Serve uploaded avatars (static files - public but helmet protected)
 app.use("/uploads", express.static(UPLOADS_DIR));
 
-// Mount router on /api AND / with authMiddleware for protected routes by default
+// Public routes (no auth required) - tickets, stats, reports
+app.use("/api", publicRouter);
+app.use("/", publicRouter);
+
+// Protected routes (require auth) - documents, reminders, admin operations
 app.use("/api", authMiddleware, router);
 app.use("/", authMiddleware, router);
 

@@ -1,27 +1,19 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { getAuthToken } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import {
-  BookOpen,
-  HelpCircle,
-  Lightbulb,
-  AlertCircle,
-  CheckCircle,
-  BarChart,
-  FileText,
-  Settings,
   File,
   Download,
   Folder,
   Trash2,
   Upload,
-  Loader2
+  Loader2,
+  FileText
 } from "lucide-react";
 
 interface Document {
@@ -44,8 +36,13 @@ export default function Documentation() {
   }, []);
 
   const fetchDocuments = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
     try {
-      const response = await api.get("/documents");
+      const response = await api.get("/documents", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setDocuments(response.data);
     } catch (error) {
       console.error("Erro ao carregar documentos:", error);
@@ -62,6 +59,12 @@ export default function Documentation() {
   const handleUpload = async () => {
     if (!uploadFile) return;
 
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Você precisa estar logado para enviar documentos.");
+      return;
+    }
+
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", uploadFile);
@@ -70,6 +73,7 @@ export default function Documentation() {
       await api.post("/documents", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`,
         },
       });
       toast.success("Documento enviado com sucesso!");
@@ -77,31 +81,58 @@ export default function Documentation() {
       // Reset input
       const fileInput = document.getElementById("file-upload") as HTMLInputElement;
       if (fileInput) fileInput.value = "";
-      
+
       fetchDocuments();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao enviar documento:", error);
-      toast.error("Erro ao enviar documento.");
+      const message = error.response?.data?.error || "Erro ao enviar documento.";
+      toast.error(message);
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleDownload = async (doc: Document) => {
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Você precisa estar logado para baixar documentos.");
+      return;
+    }
+
     try {
-        // Use direct window location for download to trigger browser download
-        window.location.href = `http://localhost:5000/api/documents/${doc.id}/download`;
+      const response = await api.get(`/documents/${doc.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: "blob",
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", doc.title);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-        console.error("Erro ao baixar documento:", error);
-        toast.error("Erro ao iniciar download.");
+      console.error("Erro ao baixar documento:", error);
+      toast.error("Erro ao iniciar download.");
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Tem certeza que deseja excluir este documento?")) return;
 
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Você precisa estar logado para excluir documentos.");
+      return;
+    }
+
     try {
-      await api.delete(`/documents/${id}`);
+      await api.delete(`/documents/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       toast.success("Documento excluído com sucesso!");
       fetchDocuments();
     } catch (error) {
@@ -129,552 +160,101 @@ export default function Documentation() {
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Documentação do Sistema</h1>
+        <h1 className="text-4xl font-bold mb-2">Meus Arquivos</h1>
         <p className="text-muted-foreground">
-          Guia completo para utilização do Dashboard de Tickets CNIEP
+          Armazene e gerencie seus documentos
         </p>
       </div>
 
-      <Tabs defaultValue="intro" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="intro">Introdução</TabsTrigger>
-          <TabsTrigger value="tickets">Tickets</TabsTrigger>
-          <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
-          <TabsTrigger value="guia">Guia Rápido</TabsTrigger>
-          <TabsTrigger value="faq">FAQ</TabsTrigger>
-          <TabsTrigger value="arquivos">Arquivos</TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Folder className="h-5 w-5 text-primary" />
+            <CardTitle>Repositório de Documentos</CardTitle>
+          </div>
+          <CardDescription>
+            Envie, baixe e gerencie seus arquivos
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
 
-        {/* ABA: INTRODUÇÃO */}
-        <TabsContent value="intro" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                <CardTitle>Bem-vindo ao Dashboard de Tickets CNIEP</CardTitle>
-              </div>
-              <CardDescription>
-                Sistema de gerenciamento e acompanhamento de tickets desenvolvido para o CNIEP
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">O que é este sistema?</h3>
-                <p className="text-muted-foreground">
-                  O Dashboard de Tickets CNIEP é uma plataforma completa para registrar, acompanhar
-                  e analisar tickets de suporte, demandas e ocorrências. O sistema oferece
-                  visualização em tempo real de métricas, relatórios detalhados e ferramentas
-                  para gestão eficiente das demandas.
-                </p>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-3">Principais Funcionalidades</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="flex gap-3 p-3 border rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium">Gestão de Tickets</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Crie, edite e acompanhe tickets com status e prioridades
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 p-3 border rounded-lg">
-                    <BarChart className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium">Dashboard Interativo</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Visualize KPIs e gráficos em tempo real
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 p-3 border rounded-lg">
-                    <FileText className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium">Relatórios Detalhados</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Relatórios semanais, mensais e trimestrais
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 p-3 border rounded-lg">
-                    <Settings className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium">Importação de Dados</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Importe tickets em lote via Excel
-                      </p>
-                    </div>
-                  </div>
+          <div className="bg-muted/30 p-4 rounded-lg border border-dashed">
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <div className="flex-1 w-full">
+                <h4 className="font-medium mb-2">Adicionar novo documento</h4>
+                <div className="flex gap-2">
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    onChange={handleFileChange}
+                    className="bg-background"
+                  />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ABA: TICKETS */}
-        <TabsContent value="tickets" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gestão de Tickets</CardTitle>
-              <CardDescription>
-                Aprenda a criar, editar e gerenciar tickets no sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="font-semibold mb-3">Status de Tickets</h3>
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-                      Aberto
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">Ticket criado, aguardando ação</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                      Em Andamento
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">Ticket sendo trabalhado</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300">
-                      Pendente
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">Aguardando informação externa</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                      Resolvido
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">Ticket finalizado</span>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-3">Níveis de Prioridade</h3>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 border rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-red-700">Alta Prioridade</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Problemas críticos que impedem operações principais. Requerem atenção imediata.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 p-3 border rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-yellow-700">Média Prioridade</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Problemas que afetam funcionalidades mas têm alternativas temporárias.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 p-3 border rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-blue-700">Baixa Prioridade</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Melhorias, sugestões ou problemas menores que não impactam operações.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-3">Campos do Ticket</h3>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <span className="font-medium min-w-[140px]">Número do Ticket:</span>
-                    <span className="text-muted-foreground">Identificador único (opcional)</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="font-medium min-w-[140px]">Título:</span>
-                    <span className="text-muted-foreground">Resumo breve do problema ou demanda</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="font-medium min-w-[140px]">Descrição:</span>
-                    <span className="text-muted-foreground">Detalhes completos do ticket</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="font-medium min-w-[140px]">URL:</span>
-                    <span className="text-muted-foreground">Link relacionado ao ticket (opcional)</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="font-medium min-w-[140px]">Data de Registro:</span>
-                    <span className="text-muted-foreground">Quando o ticket foi registrado</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ABA: RELATÓRIOS */}
-        <TabsContent value="relatorios" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Relatórios e Análises</CardTitle>
-              <CardDescription>
-                Entenda os diferentes tipos de relatórios disponíveis
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="border-l-4 border-blue-500 pl-4 py-2">
-                  <h3 className="font-semibold mb-1">Relatório Semanal</h3>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Análise detalhada dos tickets da semana atual, incluindo:
-                  </p>
-                  <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                    <li>• Total de tickets criados na semana</li>
-                    <li>• Distribuição por status e prioridade</li>
-                    <li>• Taxa de resolução</li>
-                    <li>• Tickets pendentes</li>
-                  </ul>
-                </div>
-
-                <div className="border-l-4 border-purple-500 pl-4 py-2">
-                  <h3 className="font-semibold mb-1">Relatório Mensal</h3>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Visão consolidada do mês, com métricas como:
-                  </p>
-                  <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                    <li>• Comparativo com meses anteriores</li>
-                    <li>• Tempo médio de resolução</li>
-                    <li>• Categorização de problemas recorrentes</li>
-                    <li>• Análise de tendências</li>
-                  </ul>
-                </div>
-
-                <div className="border-l-4 border-green-500 pl-4 py-2">
-                  <h3 className="font-semibold mb-1">Relatório Trimestral</h3>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Análise estratégica do trimestre, incluindo:
-                  </p>
-                  <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                    <li>• Evolução de métricas ao longo dos meses</li>
-                    <li>• Identificação de padrões sazonais</li>
-                    <li>• Recomendações estratégicas</li>
-                    <li>• Planejamento para próximo período</li>
-                  </ul>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-3">KPIs Principais</h3>
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div className="p-3 border rounded-lg">
-                    <h4 className="font-medium mb-1">Total de Tickets</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Quantidade total de tickets no período
-                    </p>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <h4 className="font-medium mb-1">Taxa de Resolução</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Percentual de tickets resolvidos
-                    </p>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <h4 className="font-medium mb-1">Tempo Médio</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Tempo médio para resolução
-                    </p>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <h4 className="font-medium mb-1">Tickets Pendentes</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Quantidade aguardando resolução
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ABA: GUIA RÁPIDO */}
-        <TabsContent value="guia" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Lightbulb className="h-5 w-5 text-yellow-600" />
-                <CardTitle>Guia Rápido</CardTitle>
-              </div>
-              <CardDescription>
-                Tutoriais passo a passo para tarefas comuns
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
-                  Como criar um novo ticket
-                </h3>
-                <ol className="space-y-2 ml-8 text-sm text-muted-foreground">
-                  <li>1. Acesse a página inicial do dashboard</li>
-                  <li>2. Clique no botão "Novo Ticket" no canto superior direito</li>
-                  <li>3. Preencha os campos obrigatórios (Título, Status, Prioridade)</li>
-                  <li>4. Adicione informações opcionais (Descrição, URL, Data)</li>
-                  <li>5. Clique em "Salvar" para criar o ticket</li>
-                </ol>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
-                  Como editar um ticket existente
-                </h3>
-                <ol className="space-y-2 ml-8 text-sm text-muted-foreground">
-                  <li>1. Localize o ticket na lista da página inicial</li>
-                  <li>2. Clique no botão "Editar" (ícone de lápis) ao lado do ticket</li>
-                  <li>3. Modifique os campos desejados</li>
-                  <li>4. Clique em "Salvar" para confirmar as alterações</li>
-                </ol>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">3</span>
-                  Como importar tickets via Excel
-                </h3>
-                <ol className="space-y-2 ml-8 text-sm text-muted-foreground">
-                  <li>1. Prepare uma planilha Excel com as colunas corretas</li>
-                  <li>2. Clique no botão "Importar Excel" na página inicial</li>
-                  <li>3. Selecione o arquivo Excel do seu computador</li>
-                  <li>4. Revise os dados importados</li>
-                  <li>5. Confirme a importação</li>
-                </ol>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">4</span>
-                  Como acessar relatórios
-                </h3>
-                <ol className="space-y-2 ml-8 text-sm text-muted-foreground">
-                  <li>1. Use o menu lateral para navegar</li>
-                  <li>2. Escolha entre Relatório Semanal, Mensal ou Trimestral</li>
-                  <li>3. Visualize os gráficos e métricas apresentados</li>
-                  <li>4. Use os filtros para personalizar a visualização</li>
-                </ol>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ABA: FAQ */}
-        <TabsContent value="faq" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <HelpCircle className="h-5 w-5 text-primary" />
-                <CardTitle>Perguntas Frequentes (FAQ)</CardTitle>
-              </div>
-              <CardDescription>
-                Respostas para dúvidas comuns sobre o sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <h3 className="font-semibold mb-1">Os dados são salvos automaticamente?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Sim! Todos os dados são salvos automaticamente no banco de dados PostgreSQL
-                  assim que você cria ou edita um ticket. Não é necessário salvar manualmente.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <h3 className="font-semibold mb-1">Posso deletar um ticket?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Sim. Cada ticket tem um botão de exclusão (ícone de lixeira). Tenha cuidado,
-                  pois a exclusão é permanente e não pode ser desfeita.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <h3 className="font-semibold mb-1">Como filtro tickets por período?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Na página inicial, use os filtros disponíveis no topo da lista de tickets.
-                  Você pode filtrar por status, prioridade e período de data.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <h3 className="font-semibold mb-1">Qual formato de Excel devo usar para importação?</h3>
-                <p className="text-sm text-muted-foreground">
-                  O arquivo Excel deve conter as colunas: Título, Descrição, Status, Prioridade.
-                  Campos opcionais incluem: Número do Ticket, URL e Data de Registro.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <h3 className="font-semibold mb-1">Posso exportar os dados?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Atualmente o sistema permite visualização e análise dos dados através dos relatórios.
-                  Funcionalidades de exportação podem ser adicionadas em versões futuras.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <h3 className="font-semibold mb-1">Como funciona o tema claro/escuro?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Use o botão de tema no canto superior direito para alternar entre modo claro e escuro.
-                  Sua preferência é salva automaticamente no navegador.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <h3 className="font-semibold mb-1">O sistema funciona offline?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Não. O sistema requer conexão com a internet para acessar o banco de dados
-                  e salvar as informações.
-                </p>
-              </div>
-
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <h3 className="font-semibold mb-1">Há limite de tickets que posso criar?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Não há limite técnico para a quantidade de tickets. O sistema foi projetado
-                  para suportar grande volume de dados.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
-            <CardHeader>
-              <CardTitle className="text-blue-900 dark:text-blue-100">
-                Precisa de mais ajuda?
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                Se você não encontrou a resposta para sua dúvida nesta documentação,
-                entre em contato com a equipe de suporte técnico do CNIEP.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ABA: ARQUIVOS */}
-        <TabsContent value="arquivos" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Folder className="h-5 w-5 text-primary" />
-                <CardTitle>Repositório de Documentos</CardTitle>
-              </div>
-              <CardDescription>
-                Acesse e gerencie modelos, manuais e documentos do projeto
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              
-              <div className="bg-muted/30 p-4 rounded-lg border border-dashed">
-                <div className="flex flex-col md:flex-row items-center gap-4">
-                  <div className="flex-1 w-full">
-                    <h4 className="font-medium mb-2">Adicionar novo documento</h4>
-                    <div className="flex gap-2">
-                      <Input 
-                        id="file-upload" 
-                        type="file" 
-                        onChange={handleFileChange}
-                        className="bg-background"
-                      />
-                    </div>
-                  </div>
-                  <Button 
-                    onClick={handleUpload} 
-                    disabled={!uploadFile || isUploading}
-                    className="w-full md:w-auto mt-auto"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Enviar Arquivo
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-3">Documentos Disponíveis ({documents.length})</h3>
-                
-                {documents.length === 0 ? (
-                  <div className="text-center py-10 text-muted-foreground">
-                    <Folder className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p>Nenhum documento encontrado.</p>
-                  </div>
+              <Button
+                onClick={handleUpload}
+                disabled={!uploadFile || isUploading}
+                className="w-full md:w-auto mt-auto"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
                 ) : (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {documents.map((doc) => (
-                      <div key={doc.id} className="flex items-start gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors group relative">
-                        {getFileIcon(doc.filename)}
-                        
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleDownload(doc)}>
-                          <h4 className="font-medium truncate" title={doc.title}>{doc.title}</h4>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                            <span>{doc.filename.split('.').pop()?.toUpperCase()}</span>
-                            <span>•</span>
-                            <span>{formatFileSize(doc.size)}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(doc.createdAt).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        
-                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleDownload(doc)}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(doc.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Enviar Arquivo
+                  </>
                 )}
-              </div>
+              </Button>
+            </div>
+          </div>
 
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <Separator />
+
+          <div>
+            <h3 className="font-semibold mb-3">Documentos Disponíveis ({documents.length})</h3>
+
+            {documents.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <Folder className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p>Nenhum documento encontrado.</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="flex items-start gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors group relative">
+                    {getFileIcon(doc.filename)}
+
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleDownload(doc)}>
+                      <h4 className="font-medium truncate" title={doc.title}>{doc.title}</h4>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                        <span>{doc.filename.split('.').pop()?.toUpperCase()}</span>
+                        <span>•</span>
+                        <span>{formatFileSize(doc.size)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(doc.createdAt).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleDownload(doc)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(doc.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </CardContent>
+      </Card>
     </div>
   );
 }

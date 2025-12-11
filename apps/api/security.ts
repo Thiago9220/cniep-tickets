@@ -118,9 +118,11 @@ export function getCorsConfig() {
     origin = false;
     console.warn("[Security] CORS_ALLOWED_ORIGINS not set in production! CORS disabled.");
   } else {
-    // In development, allow all
+    // In development, allow all origins
     origin = true;
   }
+
+  console.log(`[CORS] Mode: ${isProd ? "production" : "development"}, Origin: ${origin}`);
 
   return {
     origin,
@@ -141,9 +143,7 @@ export const generalRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Muitas requisições. Tente novamente em alguns minutos." },
-  keyGenerator: (req) => {
-    return req.ip || req.headers["x-forwarded-for"] as string || "unknown";
-  },
+  ...rateLimitConfig,
 });
 
 // Strict rate limiter for login
@@ -153,10 +153,8 @@ export const loginRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Muitas tentativas de login. Tente novamente em 15 minutos." },
-  keyGenerator: (req) => {
-    return req.ip || req.headers["x-forwarded-for"] as string || "unknown";
-  },
   skipSuccessfulRequests: false, // Count all requests
+  ...rateLimitConfig,
 });
 
 // Rate limiter for upload
@@ -166,9 +164,7 @@ export const uploadRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Limite de uploads atingido. Tente novamente mais tarde." },
-  keyGenerator: (req) => {
-    return req.ip || req.headers["x-forwarded-for"] as string || "unknown";
-  },
+  ...rateLimitConfig,
 });
 
 // ============== DOCUMENT UPLOAD CONFIG ==============
