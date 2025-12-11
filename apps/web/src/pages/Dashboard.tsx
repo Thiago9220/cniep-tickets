@@ -150,6 +150,14 @@ export default function Dashboard() {
     setFilterDateEnd("");
   };
 
+  // Função para aplicar filtro ao clicar nos cards KPI
+  const applyKpiFilter = (status?: string, priority?: string) => {
+    clearFilters();
+    if (status) setFilterStatus(status);
+    if (priority) setFilterPriority(priority);
+    setShowTicketList(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -451,7 +459,13 @@ export default function Dashboard() {
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card
+          onClick={() => applyKpiFilter()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyKpiFilter(); } }}
+          className="cursor-pointer hover:shadow-md transition-shadow"
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Chamados</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -462,7 +476,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          onClick={() => applyKpiFilter('fechado')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyKpiFilter('fechado'); } }}
+          className="cursor-pointer hover:shadow-md transition-shadow"
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Resolvidos</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -473,7 +493,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          onClick={() => applyKpiFilter('pendente')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyKpiFilter('pendente'); } }}
+          className="cursor-pointer hover:shadow-md transition-shadow"
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
             <Clock className="h-4 w-4 text-yellow-500" />
@@ -484,7 +510,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          onClick={() => applyKpiFilter('pendente', 'alta')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applyKpiFilter('pendente', 'alta'); } }}
+          className="cursor-pointer hover:shadow-md transition-shadow"
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Críticos Pendentes</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-500" />

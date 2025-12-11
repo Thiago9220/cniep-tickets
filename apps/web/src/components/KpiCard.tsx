@@ -10,9 +10,10 @@ interface KpiCardProps {
   trendValue?: string;
   status?: 'success' | 'warning' | 'danger' | 'neutral';
   icon?: React.ReactNode;
+  onClick?: () => void;
 }
 
-export function KpiCard({ title, value, description, trend, trendValue, status = 'neutral', icon }: KpiCardProps) {
+export function KpiCard({ title, value, description, trend, trendValue, status = 'neutral', icon, onClick }: KpiCardProps) {
   const statusColor = {
     success: "text-green-500",
     warning: "text-orange-500",
@@ -21,7 +22,13 @@ export function KpiCard({ title, value, description, trend, trendValue, status =
   };
 
   return (
-    <Card>
+    <Card
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      className={onClick ? "cursor-pointer hover:shadow-md transition-shadow" : undefined}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">
           {title}
