@@ -166,7 +166,7 @@ export default function KanbanBoard() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col p-6">
+    <div className="h-[calc(100vh-4rem)] flex flex-col px-3 md:px-4 py-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Quadro de Desenvolvimento</h1>
@@ -177,7 +177,7 @@ export default function KanbanBoard() {
         {user?.isAdmin && <NewTicketDialog onTicketCreated={() => fetchTickets(true)} />}
       </div>
 
-      <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
+      <div className="flex-1 flex gap-3 overflow-x-auto pb-4 pr-2">
         {STAGES.map((stage) => {
           const stageTickets = getTicketsByStage(stage);
           const stageColor = TICKET_STAGE_COLORS[stage];
@@ -186,7 +186,7 @@ export default function KanbanBoard() {
           return (
             <div
               key={stage}
-              className={`flex-1 min-w-[300px] max-w-[350px] flex flex-col rounded-lg border bg-muted/30 transition-all ${
+              className={`flex-1 min-w-[260px] max-w-[320px] flex flex-col rounded-lg border bg-muted/30 transition-all ${
                 isDropTarget ? "ring-2 ring-primary bg-primary/5" : ""
               }`}
               onDragOver={(e) => handleDragOver(e, stage)}

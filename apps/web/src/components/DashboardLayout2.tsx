@@ -268,11 +268,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 md:ml-64 pt-16 md:pt-0 min-h-screen">
-        <div className="container py-6 md:py-10 max-w-7xl mx-auto animate-in fade-in duration-500">
+        <div className="container py-6 md:py-10 max-w-[1600px] mx-auto animate-in fade-in duration-500">
           {children}
         </div>
       </main>
     </div>
   );
 }
-
