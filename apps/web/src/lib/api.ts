@@ -31,6 +31,12 @@ export const ticketsApi = {
     const response = await api.get<Ticket[]>("/tickets");
     return response.data;
   },
+  reorder: async (token: string, stage: string, order: number[]): Promise<{ updated: number }> => {
+    const response = await api.post(`/tickets/reorder`, { stage, order }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  },
 
   getById: async (id: number): Promise<Ticket> => {
     const response = await api.get<Ticket>(`/tickets/${id}`);

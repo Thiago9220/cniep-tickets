@@ -14,6 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -47,6 +49,7 @@ import {
   Layers,
 } from "lucide-react";
 import { NewTicketDialog } from "@/components/NewTicketDialog";
+import { ticketsApi } from "@/lib/api";
 
 const STAGES = ["backlog", "desenvolvimento", "homologacao", "producao"] as const;
 
@@ -64,6 +67,33 @@ export default function KanbanBoard() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [draggedTicket, setDraggedTicket] = useState<Ticket | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const [dragOverTicketId, setDragOverTicketId] = useState<number | null>(null);
+
+  // Filtros e ordenação
+  const [search, setSearch] = useState("");
+  const [filterPriority, setFilterPriority] = useState<string>("todas");
+  const [filterType, setFilterType] = useState<string>("todos");
+  const [sortKey, setSortKey] = useState<
+    "manual" | "priority" | "ticketNumber" | "createdAt" | "registrationDate" | "title"
+  >("manual");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // Ordem manual por coluna (persistida no navegador)
+  const [stageOrder, setStageOrder] = useState<Record<string, number[]>>(() => {
+    try {
+      const raw = localStorage.getItem("kanban-order-v1");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const saveStageOrder = (next: Record<string, number[]>) => {
+    setStageOrder(next);
+    try {
+      localStorage.setItem("kanban-order-v1", JSON.stringify(next));
+    } catch {}
+  };
 
   useEffect(() => {
     fetchTickets();
@@ -76,6 +106,19 @@ export default function KanbanBoard() {
       if (!isBackground) setIsLoading(true);
       const response = await api.get("/tickets");
       setTickets(response.data);
+      // Reconciliar ordem manual com os tickets carregados
+      try {
+        const byStage: Record<string, number[]> = { ...stageOrder };
+        STAGES.forEach((s) => {
+          const ids = response.data.filter((t: Ticket) => (t.stage || "backlog") === s).map((t: Ticket) => t.id);
+          const existing = byStage[s] || [];
+          // manter apenas ids existentes e adicionar novos ao final
+          const filtered = existing.filter((id) => ids.includes(id));
+          const missing = ids.filter((id) => !filtered.includes(id));
+          byStage[s] = [...filtered, ...missing];
+        });
+        saveStageOrder(byStage);
+      } catch {}
     } catch (error) {
       console.error("Erro ao buscar tickets:", error);
       if (!isBackground) toast.error("Erro ao carregar tickets");
@@ -117,14 +160,29 @@ export default function KanbanBoard() {
 
   const handleDragLeave = () => {
     setDragOverStage(null);
+    setDragOverTicketId(null);
   };
 
   const handleDrop = (e: React.DragEvent, stage: string) => {
     e.preventDefault();
     setDragOverStage(null);
+    setDragOverTicketId(null);
 
     if (draggedTicket && draggedTicket.stage !== stage) {
+      // Mover para outra coluna: coloca no topo da ordem do destino
+      const dest = stageOrder[stage] || [];
+      const src = stageOrder[draggedTicket.stage] || [];
+      const newSrc = src.filter((id) => id !== draggedTicket.id);
+      const newDest = [draggedTicket.id, ...dest.filter((id) => id !== draggedTicket.id)];
+      const nextOrder = { ...stageOrder, [draggedTicket.stage]: newSrc, [stage]: newDest };
+      saveStageOrder(nextOrder);
       updateTicketStage(draggedTicket.id, stage);
+      // Persistir ordem nas duas colunas
+      persistOrder(stage, nextOrder[stage]);
+      persistOrder(draggedTicket.stage, nextOrder[draggedTicket.stage]);
+    } else if (draggedTicket && draggedTicket.stage === stage) {
+      // Apenas reordenou dentro da mesma coluna
+      persistOrder(stage);
     }
     setDraggedTicket(null);
   };
@@ -138,10 +196,87 @@ export default function KanbanBoard() {
     }
   };
 
+  // Ordenação auxiliar
+  const sorters: Record<string, (a: Ticket, b: Ticket) => number> = {
+    priority: (a, b) => {
+      const weight: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
+      return (weight[a.priority] || 0) - (weight[b.priority] || 0);
+    },
+    ticketNumber: (a, b) => (a.ticketNumber || 0) - (b.ticketNumber || 0),
+    createdAt: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    registrationDate: (a, b) =>
+      new Date(a.registrationDate || a.createdAt).getTime() - new Date(b.registrationDate || b.createdAt).getTime(),
+    title: (a, b) => a.title.localeCompare(b.title, "pt-BR"),
+  };
+
   const getTicketsByStage = (stage: string) => {
-    return tickets
-      .filter((t) => (t.stage || "backlog") === stage)
-      .filter((t) => t.status !== "fechado"); // Hide closed tickets
+    let list = tickets.filter((t) => (t.stage || "backlog") === stage).filter((t) => t.status !== "fechado");
+
+    // Filtros
+    if (filterPriority !== "todas") list = list.filter((t) => t.priority === filterPriority);
+    if (filterType !== "todos") list = list.filter((t) => t.type === filterType);
+    if (search.trim()) {
+      const term = search.toLowerCase();
+      list = list.filter((t) =>
+        t.title.toLowerCase().includes(term) ||
+        (t.description || "").toLowerCase().includes(term) ||
+        String(t.ticketNumber || "").includes(term)
+      );
+    }
+
+    // Ordenação
+    if (sortKey === "manual") {
+      const order = stageOrder[stage] || [];
+      list = [...list].sort((a, b) => {
+        const ia = order.indexOf(a.id);
+        const ib = order.indexOf(b.id);
+        return (ia === -1 ? 999999 : ia) - (ib === -1 ? 999999 : ib);
+      });
+    } else {
+      const sorter = sorters[sortKey];
+      list = [...list].sort(sorter);
+      if (sortDir === "desc") list.reverse();
+    }
+
+    return list;
+  };
+
+  // WIP Limits (ajustável no futuro)
+  const WIP_LIMIT: Record<string, number> = {
+    backlog: 1000,
+    desenvolvimento: 8,
+    homologacao: 6,
+    producao: 4,
+  };
+
+  const isOverWip = (stage: string, count: number) => count > (WIP_LIMIT[stage] ?? 9999);
+
+  // Reordenar visualmente dentro da mesma coluna enquanto arrasta (preview + persistência local)
+  const reorderWithinStage = (stage: string, overTicketId: number) => {
+    if (!draggedTicket || draggedTicket.stage !== stage) return;
+    const order = stageOrder[stage] || [];
+    const from = order.indexOf(draggedTicket.id);
+    const to = order.indexOf(overTicketId);
+    if (from === -1 || to === -1 || from === to) return;
+    const next = [...order];
+    next.splice(from, 1);
+    next.splice(to, 0, draggedTicket.id);
+    saveStageOrder({ ...stageOrder, [stage]: next });
+  };
+
+  const persistOrder = async (stage: string, order?: number[]) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const arr = order ?? (stageOrder[stage] || []);
+      // Apenas persiste tickets que realmente estão nesse stage
+      const idsInStage = tickets.filter((t) => (t.stage || "backlog") === stage).map((t) => t.id);
+      const filtered = arr.filter((id) => idsInStage.includes(id));
+      if (filtered.length === 0) return;
+      await ticketsApi.reorder(token, stage, filtered);
+    } catch (e) {
+      console.error("Falha ao persistir ordem do Kanban", e);
+    }
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -167,14 +302,49 @@ export default function KanbanBoard() {
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col px-3 md:px-4 py-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold mb-2">Quadro de Desenvolvimento</h1>
           <p className="text-muted-foreground">
             Arraste os tickets entre as colunas para atualizar o status de desenvolvimento
           </p>
         </div>
-        {user?.isAdmin && <NewTicketDialog onTicketCreated={() => fetchTickets(true)} />}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Input placeholder="Buscar por título, descrição ou #" value={search} onChange={(e) => setSearch(e.target.value)} className="w-[220px]" />
+          </div>
+          <Select value={filterPriority} onValueChange={setFilterPriority}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Prioridade" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas prioridades</SelectItem>
+              <SelectItem value="alta">Alta</SelectItem>
+              <SelectItem value="media">Média</SelectItem>
+              <SelectItem value="baixa">Baixa</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os tipos</SelectItem>
+              {Object.entries(TICKET_TYPE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v as any)}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="priority">Prioridade</SelectItem>
+              <SelectItem value="ticketNumber">Número</SelectItem>
+              <SelectItem value="createdAt">Criado em</SelectItem>
+              <SelectItem value="registrationDate">Registro</SelectItem>
+              <SelectItem value="title">Título</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}>{sortDir === "asc" ? "Asc" : "Desc"}</Button>
+          {user?.isAdmin && <NewTicketDialog onTicketCreated={() => fetchTickets(true)} />}
+        </div>
       </div>
 
       <div className="flex-1 flex gap-3 overflow-x-auto pb-4 pr-2">
@@ -182,6 +352,7 @@ export default function KanbanBoard() {
           const stageTickets = getTicketsByStage(stage);
           const stageColor = TICKET_STAGE_COLORS[stage];
           const isDropTarget = dragOverStage === stage;
+          const overLimit = isOverWip(stage, stageTickets.length);
 
           return (
             <div
@@ -195,7 +366,7 @@ export default function KanbanBoard() {
             >
               {/* Column Header */}
               <div
-                className="p-3 border-b flex items-center gap-2"
+                className={`p-3 border-b flex items-center gap-2 ${overLimit ? "bg-red-500/5" : ""}`}
                 style={{ borderBottomColor: stageColor }}
               >
                 <div
@@ -208,6 +379,9 @@ export default function KanbanBoard() {
                 <Badge variant="secondary" className="ml-auto">
                   {stageTickets.length}
                 </Badge>
+                {overLimit && (
+                  <Badge variant="destructive" className="ml-2">WIP {WIP_LIMIT[stage]}</Badge>
+                )}
               </div>
 
               {/* Tickets List */}
@@ -223,6 +397,11 @@ export default function KanbanBoard() {
                         key={ticket.id}
                         draggable={user?.isAdmin}
                         onDragStart={(e) => handleDragStart(e, ticket)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverTicketId(ticket.id);
+                          reorderWithinStage(stage, ticket.id);
+                        }}
                         className={`cursor-pointer hover:shadow-md transition-all ${
                           draggedTicket?.id === ticket.id ? "opacity-50" : ""
                         } ${user?.isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}

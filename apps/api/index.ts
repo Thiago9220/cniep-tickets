@@ -224,10 +224,24 @@ router.post("/tickets/import", adminMiddleware, upload.single("file"), async (re
 // Listar todos os tickets (PUBLIC)
 publicRouter.get("/tickets", async (_req, res) => {
   try {
-    const tickets = await prisma.ticket.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-    res.json(tickets);
+    try {
+      const tickets = await prisma.ticket.findMany({
+        orderBy: [
+          { stage: "asc" },
+          // @ts-ignore - 'position' pode não existir em bancos antigos
+          { position: "asc" },
+          { createdAt: "desc" },
+        ],
+      });
+      return res.json(tickets);
+    } catch (err) {
+      // Fallback para ambientes sem a coluna/cliente atualizado
+      console.warn("Fallback GET /tickets sem 'position' — execute as migrações para ordenar por coluna.");
+      const tickets = await prisma.ticket.findMany({
+        orderBy: [{ stage: "asc" }, { createdAt: "desc" }],
+      });
+      return res.json(tickets);
+    }
   } catch (error) {
     console.error("Erro ao buscar tickets:", error);
     res.status(500).json({ error: "Erro ao buscar tickets" });
@@ -252,7 +266,11 @@ publicRouter.get("/tickets/:id", async (req, res) => {
 // Criar um novo ticket (apenas admin)
 router.post("/tickets", adminMiddleware, async (req, res) => {
   try {
-    const { title, description, status, priority, type, url, ticketNumber, registrationDate } = req.body;
+    const { title, description, status, priority, type, url, ticketNumber, registrationDate, stage } = req.body;
+    const stageValue = stage || "backlog";
+    const maxPos = await prisma.ticket.aggregate({ _max: { position: true }, where: { stage: stageValue } });
+    const nextPos = (maxPos._max.position ?? 0) + 1;
+    // @ts-ignore position pode não constar nas tipagens locais
     const ticket = await prisma.ticket.create({
       data: {
         title,
@@ -262,7 +280,9 @@ router.post("/tickets", adminMiddleware, async (req, res) => {
         type,
         url,
         ticketNumber,
-        registrationDate: registrationDate ? new Date(registrationDate) : null
+        registrationDate: registrationDate ? new Date(registrationDate) : null,
+        stage: stageValue,
+        position: nextPos,
       },
     });
     res.status(201).json(ticket);
@@ -305,15 +325,61 @@ router.patch("/tickets/:id/stage", adminMiddleware, async (req, res) => {
     if (!stage || !validStages.includes(stage)) {
       return res.status(400).json({ error: "Stage inválido" });
     }
-
-    const ticket = await prisma.ticket.update({
-      where: { id: parseInt(req.params.id) },
-      data: { stage },
-    });
-    res.json(ticket);
+    // Define posição no final da coluna destino por padrão
+    try {
+      const maxPos = await prisma.ticket.aggregate({
+        // @ts-ignore
+        _max: { position: true },
+        where: { stage },
+      });
+      // @ts-ignore
+      const nextPos = (maxPos._max.position ?? 0) + 1;
+      // @ts-ignore
+      const ticket = await prisma.ticket.update({
+        where: { id: parseInt(req.params.id) },
+        data: { stage, position: nextPos },
+      });
+      res.json(ticket);
+    } catch (e) {
+      // Fallback: apenas muda o stage caso 'position' não exista
+      const ticket = await prisma.ticket.update({
+        where: { id: parseInt(req.params.id) },
+        data: { stage },
+      });
+      res.json(ticket);
+    }
   } catch (error) {
     console.error("Erro detalhado ao atualizar stage:", error); // Log detalhado
     res.status(500).json({ error: "Erro ao atualizar stage do ticket" });
+  }
+});
+
+// Reordenar tickets dentro de um stage (apenas admin)
+router.post("/tickets/reorder", adminMiddleware, async (req, res) => {
+  try {
+    const { stage, order } = req.body as { stage?: string; order?: number[] };
+    const validStages = ["backlog", "desenvolvimento", "homologacao", "producao"];
+    if (!stage || !validStages.includes(stage)) {
+      return res.status(400).json({ error: "Stage inválido" });
+    }
+    if (!Array.isArray(order)) {
+      return res.status(400).json({ error: "Payload inválido" });
+    }
+    // Atualiza posições em transação
+    try {
+      const ops = order.map((id, idx) =>
+        // @ts-ignore
+        prisma.ticket.update({ where: { id }, data: { position: idx, stage } })
+      );
+      await prisma.$transaction(ops);
+      res.json({ updated: order.length });
+    } catch (e) {
+      // Ambiente sem coluna 'position'
+      res.status(501).json({ error: "Reorder não disponível: falta coluna 'position'. Rode as migrações." });
+    }
+  } catch (error) {
+    console.error("Erro ao reordenar tickets:", error);
+    res.status(500).json({ error: "Erro ao reordenar tickets" });
   }
 });
 

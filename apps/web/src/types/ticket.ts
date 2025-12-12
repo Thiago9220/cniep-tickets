@@ -18,6 +18,7 @@ export interface Ticket {
   priority: string;
   type: string;
   stage: string;
+  position?: number | null;
   url?: string | null;
   registrationDate?: string | null;
   createdAt: string;

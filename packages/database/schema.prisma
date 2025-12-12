@@ -18,6 +18,7 @@ model Ticket {
   priority         String    @default("media")
   type             String    @default("outros") // orientacao, correcao_tecnica, erro_temporario, duvida_negocial, melhorias, outros
   stage            String    @default("backlog") // backlog, desenvolvimento, homologacao, producao
+  position         Int?      // ordem dentro da coluna (stage)
   url              String?
   registrationDate DateTime?
   createdAt        DateTime  @default(now())
@@ -27,6 +28,7 @@ model Ticket {
   @@index([priority])
   @@index([type])
   @@index([stage])
+  @@index([stage, position])
   @@index([registrationDate])
 }
 
