@@ -548,7 +548,8 @@ export default function Dashboard() {
                     outerRadius={100}
                     paddingAngle={2}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    // Oculta rótulos de fatias com 0%
+                    label={({ name, percent }) => (Math.round(percent * 100) > 0 ? `${name} (${(percent * 100).toFixed(0)}%)` : null)}
                     labelLine={false}
                   >
                     {typeChartData.map((entry, index) => (
@@ -650,7 +651,9 @@ export default function Dashboard() {
                     cy="50%"
                     outerRadius={80}
                     dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
+                    // Evita sobreposição quando alguma categoria é 0
+                    label={({ name, value }) => (value > 0 ? `${name}: ${value}` : null)}
+                    labelLine={false}
                   >
                     {statusChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />

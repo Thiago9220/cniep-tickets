@@ -329,7 +329,9 @@ export default function MonthlyReport() {
                     outerRadius={90}
                     paddingAngle={2}
                     dataKey="value"
-                    label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                    // Oculta rótulos para fatias com 0%
+                    label={({ percent }) => (Math.round(percent * 100) > 0 ? `${(percent * 100).toFixed(0)}%` : null)}
+                    labelLine={false}
                   >
                     {typeChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />

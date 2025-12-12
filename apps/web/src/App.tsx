@@ -70,7 +70,7 @@ function App() {
         <AuthProvider>
           <DataProvider>
             <TooltipProvider>
-              <Toaster />
+              <Toaster duration={2000} visibleToasts={1} />
               <AppRouter />
             </TooltipProvider>
           </DataProvider>

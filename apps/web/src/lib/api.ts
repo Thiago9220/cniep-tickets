@@ -279,24 +279,45 @@ export interface AvailableQuarters {
   quarters: string[];
 }
 
-// Tipos para Fluxos (Workflows)
-export interface WorkflowContact {
+// Tipos para Fluxos (Workflows) - Fluxograma de Decisão
+
+export type WorkflowNodeType = "question" | "contact" | "link" | "action" | "end";
+
+export interface WorkflowNodeOption {
+  label: string;
+  targetNodeId: string;
+}
+
+export interface WorkflowNodeContact {
   name: string;
   role?: string;
   phone?: string;
   email?: string;
 }
 
-export interface WorkflowLink {
-  title: string;
+export interface WorkflowNodeLink {
   url: string;
   description?: string;
 }
 
-export interface WorkflowStep {
-  order: number;
+export interface WorkflowNodeAction {
+  description: string;
+}
+
+export interface WorkflowNodeEnd {
+  message?: string;
+}
+
+export interface WorkflowNodeQuestion {
+  options: WorkflowNodeOption[];
+}
+
+export interface WorkflowNode {
+  id: string;
+  type: WorkflowNodeType;
   title: string;
-  description?: string;
+  content: WorkflowNodeQuestion | WorkflowNodeContact | WorkflowNodeLink | WorkflowNodeAction | WorkflowNodeEnd;
+  position?: { x: number; y: number };
 }
 
 export interface Workflow {
@@ -305,9 +326,8 @@ export interface Workflow {
   title: string;
   description?: string | null;
   category?: string | null;
-  contacts?: WorkflowContact[] | null;
-  links?: WorkflowLink[] | null;
-  steps?: WorkflowStep[] | null;
+  nodes?: WorkflowNode[] | null;
+  startNodeId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -316,9 +336,8 @@ export interface WorkflowCreate {
   title: string;
   description?: string;
   category?: string;
-  contacts?: WorkflowContact[];
-  links?: WorkflowLink[];
-  steps?: WorkflowStep[];
+  nodes?: WorkflowNode[];
+  startNodeId?: string;
 }
 
 export interface WorkflowUpdate extends Partial<WorkflowCreate> {}

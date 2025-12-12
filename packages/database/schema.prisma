@@ -140,9 +140,20 @@ model Workflow {
   title       String
   description String?
   category    String?  // Ex: "Negocial", "Penal", "Infraestrutura"
-  contacts    Json?    // Array de contatos: [{name, role, phone, email}]
-  links       Json?    // Array de links: [{title, url, description}]
-  steps       Json?    // Array de passos: [{order, title, description}]
+  // Estrutura do fluxograma como JSON:
+  // nodes: Array de nós, cada um com:
+  //   - id: string (único)
+  //   - type: "question" | "contact" | "link" | "action" | "end"
+  //   - title: string
+  //   - content: objeto dependendo do tipo:
+  //       question: { options: [{ label: string, targetNodeId: string }] }
+  //       contact: { name, role?, phone?, email? }
+  //       link: { url, description? }
+  //       action: { description }
+  //       end: { message? }
+  //   - position?: { x, y } para layout visual
+  nodes       Json?
+  startNodeId String?  // ID do nó inicial
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -284,7 +284,9 @@ export default function WeeklyReport() {
                             cy="50%"
                             outerRadius={80}
                             dataKey="value"
-                            label={({ name, value }) => `${name}: ${value}`}
+                            // Evitar sobreposição quando houver valores 0
+                            label={({ name, value }) => (value > 0 ? `${name}: ${value}` : null)}
+                            labelLine={false}
                           >
                             {priorityChartData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.fill} />

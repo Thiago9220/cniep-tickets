@@ -1353,7 +1353,7 @@ router.get("/workflows/:id", authMiddleware, async (req, res) => {
 router.post("/workflows", authMiddleware, async (req, res) => {
   try {
     const userId = req.user!.id;
-    const { title, description, category, contacts, links, steps } = req.body;
+    const { title, description, category, nodes, startNodeId } = req.body;
 
     if (!title || typeof title !== "string") {
       return res.status(400).json({ error: "Título é obrigatório" });
@@ -1365,9 +1365,8 @@ router.post("/workflows", authMiddleware, async (req, res) => {
         title,
         description: description || null,
         category: category || null,
-        contacts: contacts || null,
-        links: links || null,
-        steps: steps || null,
+        nodes: nodes || null,
+        startNodeId: startNodeId || null,
       },
     });
 
@@ -1390,7 +1389,7 @@ router.put("/workflows/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Fluxo não encontrado" });
     }
 
-    const { title, description, category, contacts, links, steps } = req.body;
+    const { title, description, category, nodes, startNodeId } = req.body;
 
     const workflow = await prisma.workflow.update({
       where: { id: req.params.id },
@@ -1398,9 +1397,8 @@ router.put("/workflows/:id", authMiddleware, async (req, res) => {
         title: title !== undefined ? title : existing.title,
         description: description !== undefined ? description : existing.description,
         category: category !== undefined ? category : existing.category,
-        contacts: contacts !== undefined ? contacts : existing.contacts,
-        links: links !== undefined ? links : existing.links,
-        steps: steps !== undefined ? steps : existing.steps,
+        nodes: nodes !== undefined ? nodes : existing.nodes,
+        startNodeId: startNodeId !== undefined ? startNodeId : existing.startNodeId,
       },
     });
 
