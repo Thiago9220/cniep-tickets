@@ -32,6 +32,48 @@ model Ticket {
   @@index([registrationDate])
 }
 
+model TicketComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  userId    Int
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([userId])
+}
+
+model TicketActivity {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  userId    Int?
+  type      String
+  fromStage String?
+  toStage   String?
+  message   String?
+  createdAt DateTime @default(now())
+
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model TicketFollower {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, userId])
+}
+
 model WeeklyReport {
   id        Int      @id @default(autoincrement())
   weekKey   String   @unique // Formato: YYYY-WXX (ex: 2025-W49)

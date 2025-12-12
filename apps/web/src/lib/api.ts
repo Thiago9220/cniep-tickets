@@ -31,6 +31,27 @@ export const ticketsApi = {
     const response = await api.get<Ticket[]>("/tickets");
     return response.data;
   },
+  // Collaboration
+  getComments: async (ticketId: number) => {
+    const { data } = await api.get(`/tickets/${ticketId}/comments`);
+    return data as Array<{ id: number; content: string; createdAt: string; user: { id: number; name: string | null; email: string } }>;
+  },
+  addComment: async (ticketId: number, content: string, token: string) => {
+    const { data } = await api.post(`/tickets/${ticketId}/comments`, { content }, { headers: { Authorization: `Bearer ${token}` } });
+    return data;
+  },
+  getActivities: async (ticketId: number) => {
+    const { data } = await api.get(`/tickets/${ticketId}/activities`);
+    return data as Array<{ id: number; type: string; fromStage?: string; toStage?: string; message?: string; createdAt: string; user?: { id: number; name: string | null; email: string } }>
+  },
+  toggleFollow: async (ticketId: number, token: string) => {
+    const { data } = await api.post(`/tickets/${ticketId}/follow`, {}, { headers: { Authorization: `Bearer ${token}` } });
+    return data as { following: boolean };
+  },
+  getFollowers: async (ticketId: number, token: string) => {
+    const { data } = await api.get(`/tickets/${ticketId}/followers`, { headers: { Authorization: `Bearer ${token}` } });
+    return data as Array<{ id: number; name: string | null; email: string; createdAt: string }>;
+  },
   reorder: async (token: string, stage: string, order: number[]): Promise<{ updated: number }> => {
     const response = await api.post(`/tickets/reorder`, { stage, order }, {
       headers: { Authorization: `Bearer ${token}` },

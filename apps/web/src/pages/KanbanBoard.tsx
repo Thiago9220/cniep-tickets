@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { NewTicketDialog } from "@/components/NewTicketDialog";
 import { ticketsApi } from "@/lib/api";
+import { Textarea } from "@/components/ui/textarea";
 
 const STAGES = ["backlog", "desenvolvimento", "homologacao", "producao"] as const;
 
@@ -68,6 +69,10 @@ export default function KanbanBoard() {
   const [draggedTicket, setDraggedTicket] = useState<Ticket | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [dragOverTicketId, setDragOverTicketId] = useState<number | null>(null);
+  const [comments, setComments] = useState<Array<{ id: number; content: string; createdAt: string; user: { id: number; name: string | null; email: string } }>>([]);
+  const [newComment, setNewComment] = useState("");
+  const [activities, setActivities] = useState<Array<{ id: number; type: string; fromStage?: string; toStage?: string; message?: string; createdAt: string; user?: { id: number; name: string | null; email: string } }>>([]);
+  const [following, setFollowing] = useState<boolean>(false);
 
   // Filtros e ordenação
   const [search, setSearch] = useState("");
@@ -292,6 +297,24 @@ export default function KanbanBoard() {
     );
   };
 
+  // Load comments/activities when opening ticket dialog
+  useEffect(() => {
+    const loadCollab = async () => {
+      if (!selectedTicket) return;
+      try {
+        const [c, a] = await Promise.all([
+          ticketsApi.getComments(selectedTicket.id),
+          ticketsApi.getActivities(selectedTicket.id),
+        ]);
+        setComments(c);
+        setActivities(a);
+      } catch (e) {
+        console.error("Erro ao carregar colaboração do ticket", e);
+      }
+    };
+    loadCollab();
+  }, [selectedTicket?.id]);
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -299,6 +322,35 @@ export default function KanbanBoard() {
       </div>
     );
   }
+
+  const postComment = async () => {
+    if (!selectedTicket || !newComment.trim()) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      await ticketsApi.addComment(selectedTicket.id, newComment.trim(), token);
+      setNewComment("");
+      const fresh = await ticketsApi.getComments(selectedTicket.id);
+      setComments(fresh);
+      const acts = await ticketsApi.getActivities(selectedTicket.id);
+      setActivities(acts);
+    } catch (e) {
+      console.error("Erro ao comentar", e);
+      toast.error("Erro ao adicionar comentário");
+    }
+  };
+
+  const toggleFollow = async () => {
+    if (!selectedTicket) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const res = await ticketsApi.toggleFollow(selectedTicket.id, token);
+      setFollowing(res.following);
+    } catch (e) {
+      console.error("Erro ao seguir ticket", e);
+    }
+  };
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col px-3 md:px-4 py-6">
@@ -501,7 +553,7 @@ export default function KanbanBoard() {
 
       {/* Ticket Detail Dialog */}
       <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           {selectedTicket && (
             <>
               <DialogHeader>
@@ -512,6 +564,7 @@ export default function KanbanBoard() {
                     </Badge>
                   )}
                   {getPriorityBadge(selectedTicket.priority)}
+                  <Button variant="outline" size="sm" className="ml-auto" onClick={toggleFollow}>{following ? "Deixar de seguir" : "Seguir"}</Button>
                 </div>
                 <DialogTitle className="text-left">{selectedTicket.title}</DialogTitle>
                 <DialogDescription className="text-left">
@@ -603,6 +656,50 @@ export default function KanbanBoard() {
                   </div>
                 </div>
               )}
+
+              {/* Comentários */}
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Comentários</p>
+                <div className="max-h-40 overflow-y-auto space-y-3 pr-2">
+                  {comments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sem comentários</p>
+                  ) : (
+                    comments.map((c) => (
+                      <div key={c.id} className="text-sm">
+                        <span className="font-medium">{c.user.name || c.user.email}</span>{" "}
+                        <span className="text-muted-foreground text-xs">{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
+                        <p className="mt-1 whitespace-pre-wrap">{c.content}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Escreva um comentário... Use @email para mencionar" rows={2} />
+                  <Button onClick={postComment}>Enviar</Button>
+                </div>
+              </div>
+
+              {/* Histórico */}
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Histórico</p>
+                <div className="max-h-40 overflow-y-auto space-y-2 pr-2 text-sm">
+                  {activities.length === 0 ? (
+                    <p className="text-muted-foreground">Sem atividades</p>
+                  ) : (
+                    activities.map((a) => (
+                      <div key={a.id}>
+                        <span className="font-medium">{a.user?.name || a.user?.email || "Sistema"}</span>{" "}
+                        <span className="text-muted-foreground">{a.type === "move" ? (
+                          <>moveu de <b>{TICKET_STAGE_LABELS[a.fromStage || ""] || a.fromStage}</b> para <b>{TICKET_STAGE_LABELS[a.toStage || ""] || a.toStage}</b></>
+                        ) : (
+                          <>comentou: {a.message}</>
+                        )}</span>
+                        <span className="text-muted-foreground text-xs"> — {new Date(a.createdAt).toLocaleString("pt-BR")}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </>
           )}
         </DialogContent>

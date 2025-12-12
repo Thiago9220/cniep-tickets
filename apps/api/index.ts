@@ -327,6 +327,7 @@ router.patch("/tickets/:id/stage", adminMiddleware, async (req, res) => {
     }
     // Define posição no final da coluna destino por padrão
     try {
+      const current = await prisma.ticket.findUnique({ where: { id: parseInt(req.params.id) } });
       const maxPos = await prisma.ticket.aggregate({
         // @ts-ignore
         _max: { position: true },
@@ -339,13 +340,41 @@ router.patch("/tickets/:id/stage", adminMiddleware, async (req, res) => {
         where: { id: parseInt(req.params.id) },
         data: { stage, position: nextPos },
       });
+      // Log activity
+      try {
+        // @ts-ignore
+        await prisma.ticketActivity.create({
+          data: {
+            ticketId: ticket.id,
+            userId: req.user?.id || null,
+            type: "move",
+            fromStage: current?.stage || null,
+            toStage: stage,
+            message: `Movido de ${current?.stage || "?"} para ${stage}`,
+          },
+        });
+      } catch {}
       res.json(ticket);
     } catch (e) {
       // Fallback: apenas muda o stage caso 'position' não exista
+      const current = await prisma.ticket.findUnique({ where: { id: parseInt(req.params.id) } });
       const ticket = await prisma.ticket.update({
         where: { id: parseInt(req.params.id) },
         data: { stage },
       });
+      try {
+        // @ts-ignore
+        await prisma.ticketActivity.create({
+          data: {
+            ticketId: ticket.id,
+            userId: req.user?.id || null,
+            type: "move",
+            fromStage: current?.stage || null,
+            toStage: stage,
+            message: `Movido de ${current?.stage || "?"} para ${stage}`,
+          },
+        });
+      } catch {}
       res.json(ticket);
     }
   } catch (error) {
@@ -380,6 +409,135 @@ router.post("/tickets/reorder", adminMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Erro ao reordenar tickets:", error);
     res.status(500).json({ error: "Erro ao reordenar tickets" });
+  }
+});
+
+// ============== TICKETS: COMMENTS & ACTIVITIES & FOLLOWERS ==============
+
+// List comments (public)
+publicRouter.get("/tickets/:id/comments", async (req, res) => {
+  try {
+    const ticketId = parseInt(req.params.id);
+    const comments = await prisma.ticketComment.findMany({
+      where: { ticketId },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+    res.json(comments);
+  } catch (error) {
+    console.error("Erro ao listar comentários:", error);
+    res.status(500).json({ error: "Erro ao listar comentários" });
+  }
+});
+
+// Add comment (auth)
+router.post("/tickets/:id/comments", authMiddleware, async (req, res) => {
+  try {
+    const ticketId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const { content } = req.body || {};
+    if (!content || String(content).trim().length === 0) {
+      return res.status(400).json({ error: "Comentário vazio" });
+    }
+    const created = await prisma.ticketComment.create({
+      data: { ticketId, userId, content },
+    });
+    // Activity log
+    try {
+      await prisma.ticketActivity.create({
+        data: { ticketId, userId, type: "comment", message: content.slice(0, 280) },
+      });
+    } catch {}
+    // Auto-follow author + mentioned emails
+    try {
+      await prisma.ticketFollower.upsert({
+        where: { ticketId_userId: { ticketId, userId } as any },
+        update: {},
+        create: { ticketId, userId },
+      } as any);
+      // Detect @mentions by email
+      const emails = String(content)
+        .match(/@[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g)
+        ?.map((s) => s.slice(1)) || [];
+      if (emails.length > 0) {
+        const users = await prisma.user.findMany({ where: { email: { in: emails } }, select: { id: true } });
+        const tx = users.map((u) =>
+          prisma.ticketFollower.upsert({
+            where: { ticketId_userId: { ticketId, userId: u.id } as any },
+            update: {},
+            create: { ticketId, userId: u.id },
+          } as any)
+        );
+        if (tx.length) await prisma.$transaction(tx);
+      }
+    } catch {}
+    res.status(201).json(created);
+  } catch (error) {
+    console.error("Erro ao adicionar comentário:", error);
+    res.status(500).json({ error: "Erro ao adicionar comentário" });
+  }
+});
+
+// List activities (public)
+publicRouter.get("/tickets/:id/activities", async (req, res) => {
+  try {
+    const ticketId = parseInt(req.params.id);
+    const items = await prisma.ticketActivity.findMany({
+      where: { ticketId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        type: true,
+        fromStage: true,
+        toStage: true,
+        message: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+    res.json(items);
+  } catch (error) {
+    console.error("Erro ao listar atividades:", error);
+    res.status(500).json({ error: "Erro ao listar atividades" });
+  }
+});
+
+// Toggle follow (auth)
+router.post("/tickets/:id/follow", authMiddleware, async (req, res) => {
+  try {
+    const ticketId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const existing = await prisma.ticketFollower.findFirst({ where: { ticketId, userId } });
+    if (existing) {
+      await prisma.ticketFollower.delete({ where: { id: existing.id } });
+      return res.json({ following: false });
+    }
+    await prisma.ticketFollower.create({ data: { ticketId, userId } });
+    res.json({ following: true });
+  } catch (error) {
+    console.error("Erro ao alternar follow:", error);
+    res.status(500).json({ error: "Erro ao seguir ticket" });
+  }
+});
+
+// List followers (auth)
+router.get("/tickets/:id/followers", authMiddleware, async (req, res) => {
+  try {
+    const ticketId = parseInt(req.params.id);
+    const followers = await prisma.ticketFollower.findMany({
+      where: { ticketId },
+      select: { user: { select: { id: true, name: true, email: true } }, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json(followers.map((f) => ({ ...f.user, createdAt: f.createdAt })));
+  } catch (error) {
+    console.error("Erro ao listar seguidores:", error);
+    res.status(500).json({ error: "Erro ao listar seguidores" });
   }
 });
 
