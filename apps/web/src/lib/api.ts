@@ -71,13 +71,17 @@ export const ticketsApi = {
     return response.data;
   },
 
-  update: async (id: number, data: UpdateTicketDto): Promise<Ticket> => {
-    const response = await api.put<Ticket>(`/tickets/${id}`, data);
+  update: async (id: number, data: UpdateTicketDto, token?: string): Promise<Ticket> => {
+    const response = await api.put<Ticket>(`/tickets/${id}`, data, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     return response.data;
   },
 
-  delete: async (id: number): Promise<void> => {
-    await api.delete(`/tickets/${id}`);
+  delete: async (id: number, token?: string): Promise<void> => {
+    await api.delete(`/tickets/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
   },
 
   // Estatísticas

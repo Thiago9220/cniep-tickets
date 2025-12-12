@@ -46,11 +46,26 @@ import {
   Clock,
   Rocket,
   Layers,
+  Trash2,
+  CheckCircle,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import { NewTicketDialog } from "@/components/NewTicketDialog";
 import { ticketsApi } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 const STAGES = ["backlog", "desenvolvimento", "homologacao", "producao"] as const;
 
@@ -83,6 +98,11 @@ export default function KanbanBoard() {
   const [newComment, setNewComment] = useState("");
   const [activities, setActivities] = useState<Array<{ id: number; type: string; fromStage?: string; toStage?: string; message?: string; createdAt: string; user?: { id: number; name: string | null; email: string } }>>([]);
   const [following, setFollowing] = useState<boolean>(false);
+
+  // Estados para os diálogos de confirmação
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Filtros e ordenação
   const [search, setSearch] = useState("");
@@ -160,6 +180,57 @@ export default function KanbanBoard() {
       console.error("Erro ao mover ticket:", error);
       const message = error.response?.data?.error || "Erro ao mover ticket";
       toast.error(message);
+    }
+  };
+
+  const confirmDeleteTicket = async () => {
+    if (!selectedTicket) return;
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        toast.error("Você precisa estar logado para realizar esta ação");
+        return;
+      }
+      await ticketsApi.delete(selectedTicket.id, token);
+      toast.success("Ticket enviado para o limbo digital!");
+      setSelectedTicket(null);
+      setIsDeleteDialogOpen(false);
+      fetchTickets();
+    } catch (error) {
+      console.error("Erro ao excluir ticket:", error);
+      toast.error("Erro ao excluir ticket");
+    }
+  };
+
+  const confirmCloseTicket = async () => {
+    if (!selectedTicket) return;
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        toast.error("Você precisa estar logado para realizar esta ação");
+        return;
+      }
+      await ticketsApi.update(selectedTicket.id, { status: "fechado" }, token);
+      toast.success("Missão cumprida! Ticket arquivado com sucesso.");
+      setSelectedTicket(null);
+      setIsCloseDialogOpen(false);
+      fetchTickets();
+    } catch (error) {
+      console.error("Erro ao concluir ticket:", error);
+      toast.error("Erro ao concluir ticket");
+    }
+  };
+
+  const restoreTicket = async (ticket: Ticket) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      await ticketsApi.update(ticket.id, { status: "aberto" }, token);
+      toast.success("Ticket restaurado com sucesso!");
+      fetchTickets();
+    } catch (error) {
+      console.error("Erro ao restaurar ticket:", error);
+      toast.error("Erro ao restaurar ticket");
     }
   };
 
@@ -360,6 +431,8 @@ export default function KanbanBoard() {
     }
   };
 
+  const archivedTickets = tickets.filter(t => t.status === "fechado");
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col px-3 md:px-4 py-6">
       <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
@@ -403,6 +476,10 @@ export default function KanbanBoard() {
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}>{sortDir === "asc" ? "Asc" : "Desc"}</Button>
+          <Button variant="outline" size="sm" onClick={() => setShowArchived(true)}>
+            <Archive className="h-4 w-4 mr-2" />
+            Arquivados
+          </Button>
           {user?.isAdmin && <NewTicketDialog onTicketCreated={() => fetchTickets(true)} />}
         </div>
       </div>
@@ -599,6 +676,81 @@ export default function KanbanBoard() {
         })}
       </div>
 
+      {/* Dialogs */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Isso é um adeus definitivo!</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que quer mandar este ticket para o limbo digital?
+              <br />
+              Essa ação é irreversível e apagará todo o histórico e comentários.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Melhor não</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTicket} className="bg-red-600 hover:bg-red-700">
+              Sim, apagar para sempre
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isCloseDialogOpen} onOpenChange={setIsCloseDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Missão cumprida?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pronto para arquivar esta vitória?
+              <br />
+              O ticket será marcado como concluído e sairá do quadro de desenvolvimento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Ainda não</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCloseTicket} className="bg-green-600 hover:bg-green-700">
+              Sim, concluir tarefa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Sheet open={showArchived} onOpenChange={setShowArchived}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Tickets Arquivados</SheetTitle>
+            <SheetDescription>
+              Histórico de tickets concluídos. Você pode restaurá-los para o quadro a qualquer momento.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-4">
+            {archivedTickets.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">Nenhum ticket arquivado.</p>
+            ) : (
+              archivedTickets.map(ticket => (
+                <div key={ticket.id} className="border rounded-lg p-3 space-y-2 bg-muted/20">
+                   <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                           <span className="font-mono text-xs text-muted-foreground">#{ticket.ticketNumber}</span>
+                           <span className="font-medium text-sm">{ticket.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                           <Badge variant="outline" className="text-[10px]">{TICKET_TYPE_LABELS[ticket.type]}</Badge>
+                           <span>{new Date(ticket.updatedAt).toLocaleDateString("pt-BR")}</span>
+                        </div>
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => restoreTicket(ticket)} title="Restaurar ticket">
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                   </div>
+                </div>
+              ))
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* Ticket Detail Dialog */}
       <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
         <DialogContent className="max-w-2xl">
@@ -613,6 +765,16 @@ export default function KanbanBoard() {
                   )}
                   {getPriorityBadge(selectedTicket.priority)}
                   <Button variant="outline" size="sm" className="ml-auto" onClick={toggleFollow}>{following ? "Deixar de seguir" : "Seguir"}</Button>
+                  {user?.isAdmin && (
+                    <div className="flex gap-2 ml-2 border-l pl-2">
+                        <Button variant="outline" size="icon" onClick={() => setIsCloseDialogOpen(true)} title="Concluir ticket">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => setIsDeleteDialogOpen(true)} title="Excluir ticket">
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                    </div>
+                  )}
                 </div>
                 <DialogTitle className="text-left">{selectedTicket.title}</DialogTitle>
                 <DialogDescription className="text-left">
