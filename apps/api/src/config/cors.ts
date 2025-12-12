@@ -1,4 +1,3 @@
-// ============== CORS CONFIG FROM ENV ==============
 export function getCorsConfig() {
   const allowedOriginsEnv = process.env.CORS_ALLOWED_ORIGINS;
   const isProd = process.env.NODE_ENV === "production";
@@ -6,14 +5,11 @@ export function getCorsConfig() {
   let origin: string | string[] | boolean;
 
   if (allowedOriginsEnv) {
-    // Parse comma-separated origins from env
     origin = allowedOriginsEnv.split(",").map(o => o.trim());
   } else if (isProd) {
-    // In production without explicit config, be restrictive
     origin = false;
     console.warn("[Security] CORS_ALLOWED_ORIGINS not set in production! CORS disabled.");
   } else {
-    // In development, allow all origins
     origin = true;
   }
 

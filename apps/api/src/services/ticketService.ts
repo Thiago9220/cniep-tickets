@@ -7,7 +7,7 @@ export class TicketService {
       return await prisma.ticket.findMany({
         orderBy: [
           { stage: "asc" },
-          // @ts-ignore - 'position' pode não existir em bancos antigos
+          // @ts-ignore
           { position: "asc" },
           { createdAt: "desc" },
         ],
@@ -17,7 +17,6 @@ export class TicketService {
         },
       });
     } catch (err) {
-      // Fallback
       return prisma.ticket.findMany({
         orderBy: [{ stage: "asc" }, { createdAt: "desc" }],
         include: {
@@ -106,7 +105,6 @@ export class TicketService {
         await this.logActivity(ticket.id, userId, "move", `Movido de ${current?.stage || "?"} para ${stage}`, current?.stage || null, stage);
         return ticket;
     } catch (e) {
-        // Fallback
         const ticket = await prisma.ticket.update({
             where: { id },
             data: { stage },
@@ -128,8 +126,6 @@ export class TicketService {
       return processExcelBuffer(buffer, prisma);
   }
 
-  // Comments & Activities & Followers
-
   async listComments(ticketId: number) {
     return prisma.ticketComment.findMany({
       where: { ticketId },
@@ -150,7 +146,6 @@ export class TicketService {
     
     await this.logActivity(ticketId, userId, "comment", content.slice(0, 280));
     
-    // Auto follow logic
     await this.handleAutoFollow(ticketId, userId, content);
     
     return created;
@@ -191,7 +186,6 @@ export class TicketService {
     return followers.map((f) => ({ ...f.user, createdAt: f.createdAt }));
   }
 
-  // Helpers
   private async logActivity(ticketId: number, userId: number | null, type: string, message: string, fromStage: string | null = null, toStage: string | null = null) {
       try {
         await prisma.ticketActivity.create({

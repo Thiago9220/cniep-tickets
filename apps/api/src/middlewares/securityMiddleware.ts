@@ -1,6 +1,5 @@
 import helmet from "helmet";
 
-// ============== HELMET CONFIG ==============
 export const helmetMiddleware = helmet({
   contentSecurityPolicy: {
     directives: {
@@ -15,6 +14,6 @@ export const helmetMiddleware = helmet({
       frameSrc: ["'none'"],
     },
   },
-  crossOriginEmbedderPolicy: false, // Disable for compatibility
-  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin for uploads
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 });

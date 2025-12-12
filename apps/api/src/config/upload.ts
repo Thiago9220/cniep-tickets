@@ -4,11 +4,9 @@ import { Request } from "express";
 import multer from "multer";
 import { UPLOADS_DIR } from "./paths";
 
-// ============== DOCUMENT UPLOAD CONFIG ==============
 export const DOCUMENT_UPLOAD_CONFIG = {
-  maxSize: 10 * 1024 * 1024, // 10MB max for documents
+  maxSize: 10 * 1024 * 1024,
   allowedMimeTypes: [
-    // Documents
     "application/pdf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -16,15 +14,12 @@ export const DOCUMENT_UPLOAD_CONFIG = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    // Text
     "text/plain",
     "text/csv",
-    // Images (common document scans)
     "image/jpeg",
     "image/png",
     "image/gif",
     "image/webp",
-    // Archives
     "application/zip",
     "application/x-zip-compressed",
   ],
@@ -36,7 +31,6 @@ export const DOCUMENT_UPLOAD_CONFIG = {
   ]
 };
 
-// File filter for documents
 export function documentFileFilter(
   _req: Request,
   file: Express.Multer.File,
@@ -62,7 +56,6 @@ const storage = multer.diskStorage({
     cb(null, UPLOADS_DIR)
   },
   filename: function (_req, file, cb) {
-    // Save with timestamp to avoid collisions
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
     cb(null, uniqueSuffix + '-' + file.originalname)
   }
@@ -74,7 +67,6 @@ export const uploadDocs = multer({
   fileFilter: documentFileFilter,
 });
 
-// ============== AVATAR UPLOAD CONFIG ==============
 const avatarStorage = multer.diskStorage({
   destination: function (_req, _file, cb) {
     const avatarsDir = path.join(UPLOADS_DIR, "avatars");
@@ -92,7 +84,7 @@ const avatarStorage = multer.diskStorage({
 
 export const uploadAvatar = multer({
   storage: avatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowedTypes = [
       "image/jpeg",

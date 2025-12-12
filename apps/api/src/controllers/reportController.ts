@@ -3,7 +3,7 @@ import { reportService } from "../services/reportService";
 
 export class ReportController {
   // Weekly
-  async listWeekly(req: Request, res: Response) {
+  async listWeekly(_req: Request, res: Response) {
     try {
       const reports = await reportService.listWeeklyReports();
       res.json(reports);
@@ -51,7 +51,7 @@ export class ReportController {
   }
 
   // Monthly
-  async listMonthly(req: Request, res: Response) {
+  async listMonthly(_req: Request, res: Response) {
     try {
       const reports = await reportService.listMonthlyReports();
       res.json(reports);
@@ -76,7 +76,7 @@ export class ReportController {
   }
 
   // Quarterly
-  async listQuarterly(req: Request, res: Response) {
+  async listQuarterly(_req: Request, res: Response) {
     try {
       const reports = await reportService.listQuarterlyReports();
       res.json(reports);

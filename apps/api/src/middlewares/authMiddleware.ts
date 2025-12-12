@@ -1,15 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import prisma from "../lib/prisma";
 
 const JWT_SECRET = process.env.JWT_SECRET || "cniep-tickets-secret-key-2025";
 
-// Lista de emails com permissão de admin (Super Admins)
 const ADMIN_EMAILS = [
   "thiago.ramos.pro@gmail.com",
 ];
 
-// Extend Express Request to include user
 declare global {
   namespace Express {
     interface Request {
@@ -23,7 +20,6 @@ declare global {
   }
 }
 
-// ============== AUTH MIDDLEWARE ==============
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 
@@ -53,9 +49,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   }
 }
 
-// ============== ADMIN MIDDLEWARE ==============
 export function adminMiddleware(req: Request, res: Response, next: NextFunction) {
-  // Primeiro verifica autenticação
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -79,7 +73,6 @@ export function adminMiddleware(req: Request, res: Response, next: NextFunction)
 
     req.user = decoded;
 
-    // Verifica se é admin (pelo role ou pela lista de super admins)
     const isSuperAdmin = ADMIN_EMAILS.includes(decoded.email);
     const isAdminRole = decoded.role === "admin";
 
@@ -93,7 +86,6 @@ export function adminMiddleware(req: Request, res: Response, next: NextFunction)
   }
 }
 
-// Helper para verificar se email é admin
 export function isAdminEmail(email: string): boolean {
   return ADMIN_EMAILS.includes(email);
 }

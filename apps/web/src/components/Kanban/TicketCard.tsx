@@ -106,7 +106,6 @@ export function TicketCard({
               </Badge>
 
               <div className="flex items-center gap-1">
-                {/* Creator Avatar */}
                 {ticket.creator && (
                   <TooltipProvider>
                     <Tooltip>
@@ -125,7 +124,6 @@ export function TicketCard({
                   </TooltipProvider>
                 )}
                 
-                {/* Assignee Avatar */}
                 {ticket.assignee && (
                     <TooltipProvider>
                     <Tooltip>

@@ -46,7 +46,7 @@ export class ChatService {
     });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({})) as any;
         throw new Error(errorData.error?.message || `Erro na API do Gemini: ${response.status}`);
     }
 

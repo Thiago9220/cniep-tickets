@@ -18,11 +18,9 @@ export function useKanbanBoard() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Drag and Drop state
   const [draggedTicket, setDraggedTicket] = useState<Ticket | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
-  // Filters and Sorting
   const [search, setSearch] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("todas");
   const [filterType, setFilterType] = useState<string>("todos");
@@ -32,7 +30,6 @@ export function useKanbanBoard() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showArchived, setShowArchived] = useState(false);
 
-  // Manual Order State
   const [stageOrder, setStageOrder] = useState<Record<string, number[]>>(() => {
     try {
       const raw = localStorage.getItem("kanban-order-v1");
@@ -55,7 +52,6 @@ export function useKanbanBoard() {
       const response = await api.get("/tickets");
       setTickets(response.data);
       
-      // Reconcile manual order with loaded tickets
       try {
         const byStage: Record<string, number[]> = { ...stageOrder };
         STAGES.forEach((s) => {
@@ -116,7 +112,6 @@ export function useKanbanBoard() {
     }
   };
 
-  // Drag and Drop Handlers
   const handleDragStart = (e: React.DragEvent, ticket: Ticket) => {
     setDraggedTicket(ticket);
     e.dataTransfer.effectAllowed = "move";
@@ -172,7 +167,6 @@ export function useKanbanBoard() {
     }
   };
 
-  // Sorters
   const sorters: Record<string, (a: Ticket, b: Ticket) => number> = {
     priority: (a, b) => {
       const weight: Record<string, number> = { alta: 3, media: 2, baixa: 1 };

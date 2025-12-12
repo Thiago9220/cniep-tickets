@@ -53,7 +53,6 @@ const STAGE_ICONS: Record<string, React.ReactNode> = {
     producao: <div className="h-4 w-4" />,
 };
 
-// Helper to get initials
 const getInitials = (name: string) => {
   if (!name) return "??";
   return name
@@ -94,7 +93,6 @@ export default function KanbanBoard() {
     user
   } = useKanbanBoard();
 
-  // Dialog States - Keep these local to the view as they are UI-specific
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [comments, setComments] = useState<Array<{ id: number; content: string; createdAt: string; user: { id: number; name: string | null; email: string } }>>([]);
   const [newComment, setNewComment] = useState("");
@@ -104,7 +102,6 @@ export default function KanbanBoard() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
 
-  // Load comments/activities when opening ticket dialog
   useEffect(() => {
     const loadCollab = async () => {
       if (!selectedTicket) return;
@@ -265,7 +262,6 @@ export default function KanbanBoard() {
         ))}
       </div>
 
-      {/* Dialogs - Kept in main component for now as they are global-ish overlays */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -340,7 +336,6 @@ export default function KanbanBoard() {
         </SheetContent>
       </Sheet>
 
-      {/* Ticket Detail Dialog */}
       <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
         <DialogContent className="max-w-2xl">
           {selectedTicket && (
@@ -490,7 +485,6 @@ export default function KanbanBoard() {
                 </div>
               )}
 
-              {/* Comentários */}
               <div className="border-t pt-4">
                 <p className="text-sm font-medium text-muted-foreground mb-2">Comentários</p>
                 <div className="max-h-40 overflow-y-auto space-y-3 pr-2">
@@ -512,7 +506,6 @@ export default function KanbanBoard() {
                 </div>
               </div>
 
-              {/* Histórico */}
               <div className="border-t pt-4">
                 <p className="text-sm font-medium text-muted-foreground mb-2">Histórico</p>
                 <div className="max-h-40 overflow-y-auto space-y-2 pr-2 text-sm">

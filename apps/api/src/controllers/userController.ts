@@ -3,7 +3,7 @@ import { userService } from "../services/userService";
 import { createLogger } from "../utils/logger";
 
 export class UserController {
-  async list(req: Request, res: Response) {
+  async list(_req: Request, res: Response) {
     try {
       const users = await userService.listUsers();
       res.json(users);

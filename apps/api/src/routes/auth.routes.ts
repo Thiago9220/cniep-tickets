@@ -14,7 +14,7 @@ router.post("/forgot-password", loginRateLimiter, authController.forgotPassword)
 router.post("/reset-password", loginRateLimiter, authController.resetPassword);
 
 // Registration is disabled for public
-router.post("/register", loginRateLimiter, (req, res) => {
+router.post("/register", loginRateLimiter, (_req, res) => {
   res.status(403).json({
     error: "Registro público desabilitado. Entre em contato com um administrador para obter acesso."
   });

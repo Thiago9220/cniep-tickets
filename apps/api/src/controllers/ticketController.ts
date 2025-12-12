@@ -3,7 +3,6 @@ import { ticketService } from "../services/ticketService";
 import { ticketStatsService } from "../services/ticketStatsService";
 
 export class TicketController {
-  // CRUD
   async importTickets(req: Request, res: Response) {
     try {
       if (!req.file) {
@@ -108,7 +107,6 @@ export class TicketController {
     }
   }
 
-  // Comments, Activities, Followers
   async listComments(req: Request, res: Response) {
     try {
       const comments = await ticketService.listComments(parseInt(req.params.id));
@@ -164,7 +162,6 @@ export class TicketController {
     }
   }
 
-  // Stats
   async getOverviewStats(_req: Request, res: Response) {
     try {
       const stats = await ticketStatsService.getOverviewStats();

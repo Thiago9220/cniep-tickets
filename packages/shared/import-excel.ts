@@ -93,6 +93,7 @@ export async function processExcelBuffer(buffer: Buffer, prisma: PrismaClient): 
     try {
       const rawTicketNumber = row["Número do Chamado"];
       
+      // @ts-ignore
       if (rawTicketNumber === undefined || rawTicketNumber === null || rawTicketNumber === "") {
         skipped++;
         continue;

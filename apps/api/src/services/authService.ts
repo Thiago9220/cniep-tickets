@@ -6,7 +6,6 @@ import crypto from "crypto";
 const JWT_SECRET = process.env.JWT_SECRET || "cniep-tickets-secret-key-2025";
 const JWT_EXPIRES_IN = "7d";
 
-// Lista de emails com permissão de admin (Super Admins)
 export const ADMIN_EMAILS = [
   "thiago.ramos.pro@gmail.com",
 ];
@@ -25,10 +24,8 @@ export class AuthService {
   }
 
   async createUser(data: any) {
-    // Hash password
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    // Determinar role
     let finalRole = data.role === "admin" ? "admin" : "user";
     if (ADMIN_EMAILS.includes(data.email)) {
       finalRole = "admin";
@@ -58,7 +55,7 @@ export class AuthService {
 
     const token = crypto.randomBytes(20).toString("hex");
     const now = new Date();
-    const expires = new Date(now.getTime() + 3600000); // 1 hora
+    const expires = new Date(now.getTime() + 3600000);
 
     await prisma.user.update({
       where: { id: user.id },

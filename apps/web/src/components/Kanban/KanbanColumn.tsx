@@ -20,7 +20,6 @@ interface KanbanColumnProps {
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent, stage: string) => void;
   
-  // Ticket Props
   isAdmin: boolean;
   draggedTicketId?: number;
   onTicketDragStart: (e: React.DragEvent, ticket: Ticket) => void;
@@ -57,7 +56,6 @@ export function KanbanColumn({
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, stage)}
     >
-      {/* Column Header */}
       <div
         className={`p-3 border-b flex items-center gap-2 ${overLimit ? "bg-red-500/5" : "bg-slate-50/60 dark:bg-transparent"}`}
         style={{ borderBottomColor: stageColor }}
@@ -77,7 +75,6 @@ export function KanbanColumn({
         )}
       </div>
 
-      {/* Tickets List */}
       <ScrollArea
         className="flex-1 p-2 rounded-b-lg"
         style={{ backgroundColor: `${stageColor}0D` }}
