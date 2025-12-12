@@ -1,0 +1,25 @@
+import { Request, Response, NextFunction } from "express";
+import { createLogger } from "../utils/logger";
+
+// ============== LOGGING MIDDLEWARE ==============
+export function loggingMiddleware(req: Request, res: Response, next: NextFunction) {
+  const logger = createLogger(req);
+  const startTime = Date.now();
+
+  // Log request
+  logger.info("Request started", {
+    ip: req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+    userAgent: req.headers["user-agent"]
+  });
+
+  // Log response when finished
+  res.on("finish", () => {
+    const duration = Date.now() - startTime;
+    logger.info("Request completed", {
+      statusCode: res.statusCode,
+      duration: `${duration}ms`
+    });
+  });
+
+  next();
+}
