@@ -37,8 +37,10 @@ export const ticketsApi = {
     return response.data;
   },
 
-  create: async (data: CreateTicketDto): Promise<Ticket> => {
-    const response = await api.post<Ticket>("/tickets", data);
+  create: async (data: CreateTicketDto, token?: string): Promise<Ticket> => {
+    const response = await api.post<Ticket>("/tickets", data, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     return response.data;
   },
 
@@ -276,3 +278,83 @@ export interface QuarterlyStatsResponse {
 export interface AvailableQuarters {
   quarters: string[];
 }
+
+// Tipos para Fluxos (Workflows)
+export interface WorkflowContact {
+  name: string;
+  role?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface WorkflowLink {
+  title: string;
+  url: string;
+  description?: string;
+}
+
+export interface WorkflowStep {
+  order: number;
+  title: string;
+  description?: string;
+}
+
+export interface Workflow {
+  id: string;
+  userId: number;
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  contacts?: WorkflowContact[] | null;
+  links?: WorkflowLink[] | null;
+  steps?: WorkflowStep[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowCreate {
+  title: string;
+  description?: string;
+  category?: string;
+  contacts?: WorkflowContact[];
+  links?: WorkflowLink[];
+  steps?: WorkflowStep[];
+}
+
+export interface WorkflowUpdate extends Partial<WorkflowCreate> {}
+
+export const workflowsApi = {
+  list: async (token: string): Promise<Workflow[]> => {
+    const res = await api.get<Workflow[]>("/workflows", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+
+  getById: async (token: string, id: string): Promise<Workflow> => {
+    const res = await api.get<Workflow>(`/workflows/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+
+  create: async (token: string, data: WorkflowCreate): Promise<Workflow> => {
+    const res = await api.post<Workflow>("/workflows", data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+
+  update: async (token: string, id: string, data: WorkflowUpdate): Promise<Workflow> => {
+    const res = await api.put<Workflow>(`/workflows/${id}`, data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+
+  delete: async (token: string, id: string): Promise<void> => {
+    await api.delete(`/workflows/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};

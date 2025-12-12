@@ -22,6 +22,7 @@ import {
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ticketsApi } from "@/lib/api";
+import { getAuthToken } from "@/contexts/AuthContext";
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
@@ -57,11 +58,12 @@ export function NewTicketDialog({ onTicketCreated }: NewTicketDialogProps) {
     setIsSubmitting(true);
 
     try {
+      const token = getAuthToken();
       await ticketsApi.create({
         ...formData,
         ticketNumber: formData.ticketNumber ? parseInt(formData.ticketNumber, 10) : undefined,
         registrationDate: formData.registrationDate || undefined,
-      });
+      }, token || undefined);
 
       toast.success("Ticket criado com sucesso!");
       setOpen(false);

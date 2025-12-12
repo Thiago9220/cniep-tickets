@@ -93,6 +93,7 @@ model User {
   reminders  Reminder[]
   documents  Document[]
   manuals    Manual[]
+  workflows  Workflow[]
 
   @@index([email])
   @@index([provider, providerId])
@@ -130,4 +131,21 @@ model Manual {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+model Workflow {
+  id          String   @id @default(cuid())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    String?  // Ex: "Negocial", "Penal", "Infraestrutura"
+  contacts    Json?    // Array de contatos: [{name, role, phone, email}]
+  links       Json?    // Array de links: [{title, url, description}]
+  steps       Json?    // Array de passos: [{order, title, description}]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
 }

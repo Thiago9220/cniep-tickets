@@ -267,6 +267,7 @@ router.post("/tickets", adminMiddleware, async (req, res) => {
     });
     res.status(201).json(ticket);
   } catch (error) {
+    console.error("Erro detalhado ao criar ticket:", error);
     res.status(500).json({ error: "Erro ao criar ticket" });
   }
 });
@@ -311,6 +312,7 @@ router.patch("/tickets/:id/stage", adminMiddleware, async (req, res) => {
     });
     res.json(ticket);
   } catch (error) {
+    console.error("Erro detalhado ao atualizar stage:", error); // Log detalhado
     res.status(500).json({ error: "Erro ao atualizar stage do ticket" });
   }
 });
@@ -1308,6 +1310,127 @@ router.delete("/manuals/:id", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Erro ao deletar manual:", error);
     res.status(500).json({ error: "Erro ao deletar manual" });
+  }
+});
+
+// ============== FLUXOS (Workflows) ==============
+
+// Listar fluxos do usuário
+router.get("/workflows", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const workflows = await prisma.workflow.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(workflows);
+  } catch (error) {
+    console.error("Erro ao listar fluxos:", error);
+    res.status(500).json({ error: "Erro ao listar fluxos" });
+  }
+});
+
+// Buscar fluxo por ID
+router.get("/workflows/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!workflow || workflow.userId !== userId) {
+      return res.status(404).json({ error: "Fluxo não encontrado" });
+    }
+
+    res.json(workflow);
+  } catch (error) {
+    console.error("Erro ao buscar fluxo:", error);
+    res.status(500).json({ error: "Erro ao buscar fluxo" });
+  }
+});
+
+// Criar fluxo
+router.post("/workflows", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { title, description, category, contacts, links, steps } = req.body;
+
+    if (!title || typeof title !== "string") {
+      return res.status(400).json({ error: "Título é obrigatório" });
+    }
+
+    const workflow = await prisma.workflow.create({
+      data: {
+        userId,
+        title,
+        description: description || null,
+        category: category || null,
+        contacts: contacts || null,
+        links: links || null,
+        steps: steps || null,
+      },
+    });
+
+    res.status(201).json(workflow);
+  } catch (error) {
+    console.error("Erro ao criar fluxo:", error);
+    res.status(500).json({ error: "Erro ao criar fluxo" });
+  }
+});
+
+// Atualizar fluxo
+router.put("/workflows/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const existing = await prisma.workflow.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!existing || existing.userId !== userId) {
+      return res.status(404).json({ error: "Fluxo não encontrado" });
+    }
+
+    const { title, description, category, contacts, links, steps } = req.body;
+
+    const workflow = await prisma.workflow.update({
+      where: { id: req.params.id },
+      data: {
+        title: title !== undefined ? title : existing.title,
+        description: description !== undefined ? description : existing.description,
+        category: category !== undefined ? category : existing.category,
+        contacts: contacts !== undefined ? contacts : existing.contacts,
+        links: links !== undefined ? links : existing.links,
+        steps: steps !== undefined ? steps : existing.steps,
+      },
+    });
+
+    res.json(workflow);
+  } catch (error) {
+    console.error("Erro ao atualizar fluxo:", error);
+    res.status(500).json({ error: "Erro ao atualizar fluxo" });
+  }
+});
+
+// Deletar fluxo
+router.delete("/workflows/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const existing = await prisma.workflow.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!existing || existing.userId !== userId) {
+      return res.status(404).json({ error: "Fluxo não encontrado" });
+    }
+
+    await prisma.workflow.delete({
+      where: { id: req.params.id },
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Erro ao deletar fluxo:", error);
+    res.status(500).json({ error: "Erro ao deletar fluxo" });
   }
 });
 

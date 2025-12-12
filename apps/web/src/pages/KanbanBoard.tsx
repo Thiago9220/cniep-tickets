@@ -46,6 +46,7 @@ import {
   Rocket,
   Layers,
 } from "lucide-react";
+import { NewTicketDialog } from "@/components/NewTicketDialog";
 
 const STAGES = ["backlog", "desenvolvimento", "homologacao", "producao"] as const;
 
@@ -66,20 +67,20 @@ export default function KanbanBoard() {
 
   useEffect(() => {
     fetchTickets();
-    const interval = setInterval(fetchTickets, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval); // Clean up on unmount
+    const interval = setInterval(() => fetchTickets(true), 5000); // Poll every 5 seconds (background)
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchTickets = async () => {
+  const fetchTickets = async (isBackground = false) => {
     try {
-      setIsLoading(true);
+      if (!isBackground) setIsLoading(true);
       const response = await api.get("/tickets");
       setTickets(response.data);
     } catch (error) {
       console.error("Erro ao buscar tickets:", error);
-      toast.error("Erro ao carregar tickets");
+      if (!isBackground) toast.error("Erro ao carregar tickets");
     } finally {
-      setIsLoading(false);
+      if (!isBackground) setIsLoading(false);
     }
   };
 
@@ -138,7 +139,9 @@ export default function KanbanBoard() {
   };
 
   const getTicketsByStage = (stage: string) => {
-    return tickets.filter((t) => (t.stage || "backlog") === stage);
+    return tickets
+      .filter((t) => (t.stage || "backlog") === stage)
+      .filter((t) => t.status !== "fechado"); // Hide closed tickets
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -164,11 +167,14 @@ export default function KanbanBoard() {
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Quadro de Desenvolvimento</h1>
-        <p className="text-muted-foreground">
-          Arraste os tickets entre as colunas para atualizar o status de desenvolvimento
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Quadro de Desenvolvimento</h1>
+          <p className="text-muted-foreground">
+            Arraste os tickets entre as colunas para atualizar o status de desenvolvimento
+          </p>
+        </div>
+        {user?.isAdmin && <NewTicketDialog onTicketCreated={() => fetchTickets(true)} />}
       </div>
 
       <div className="flex-1 flex gap-4 overflow-x-auto pb-4">

@@ -23,6 +23,7 @@ import GithubCallback from "./pages/auth/GithubCallback";
 import Users from "./pages/admin/Users";
 import { ForgotPassword } from "./pages/auth/ForgotPassword";
 import { ResetPassword } from "./pages/auth/ResetPassword";
+import Workflows from "./pages/Workflows";
 
 function ProtectedRouter() {
   return (
@@ -36,6 +37,7 @@ function ProtectedRouter() {
           <Route path="/kanban" component={KanbanBoard} />
           <Route path="/guide" component={Guide} />
           <Route path="/reminders" component={Reminders} />
+          <Route path="/workflows" component={Workflows} />
           <Route path="/docs" component={Documentation} />
           <Route path="/profile" component={Profile} />
           <Route path="/admin/users" component={Users} />

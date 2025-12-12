@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, TicketIcon, Bell, FolderOpen, User, LogOut, Settings, Moon, Sun, Shield, Kanban } from "lucide-react";
+import { BarChart3, BookText, Calendar, LayoutDashboard, Menu, TicketIcon, Bell, FolderOpen, User, LogOut, Settings, Moon, Sun, Shield, Kanban, GitBranch } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -48,6 +48,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           ? "bg-red-500"
           : "bg-orange-500",
     },
+    { name: "Fluxos", href: "/workflows", icon: GitBranch },
   ] as const;
 
   const adminNavItems = [
