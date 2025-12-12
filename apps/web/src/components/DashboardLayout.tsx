@@ -23,7 +23,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const navGroups = [ { title: "Navega��o", items: [
+  const navItems = [
     { name: "Visão Geral", href: "/", icon: LayoutDashboard },
     { name: "Dashboard Chamados", href: "/dashboard", icon: TicketIcon },
     { name: "Relatório Semanal", href: "/weekly", icon: Calendar },
@@ -118,7 +118,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <item.icon className="h-4 w-4" />
                 {item.name}
-                {"badge" in item && item.badge > 0 && (
+                {"badge" in item && (item.badge as number) > 0 && (
                   <span className={cn(
                     "absolute right-2 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center",
                     item.badgeColor

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { ticketsApi } from "@/lib/api";
+import { ticketsApi, usersApi } from "@/lib/api";
 import { getAuthToken } from "@/contexts/AuthContext";
 import {
   TICKET_STATUS_LABELS,
@@ -36,6 +36,7 @@ interface NewTicketDialogProps {
 export function NewTicketDialog({ onTicketCreated }: NewTicketDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [users, setUsers] = useState<Array<{ id: number; name: string | null; email: string }>>([]);
   const [formData, setFormData] = useState({
     ticketNumber: "",
     title: "",
@@ -45,7 +46,25 @@ export function NewTicketDialog({ onTicketCreated }: NewTicketDialogProps) {
     type: "outros",
     url: "",
     registrationDate: new Date().toISOString().split("T")[0],
+    assigneeId: "",
   });
+
+  useEffect(() => {
+    if (open) {
+      const fetchUsers = async () => {
+        try {
+          const token = getAuthToken();
+          if (token) {
+            const data = await usersApi.getAll(token);
+            setUsers(data);
+          }
+        } catch (error) {
+          console.error("Erro ao carregar usuários:", error);
+        }
+      };
+      fetchUsers();
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +82,7 @@ export function NewTicketDialog({ onTicketCreated }: NewTicketDialogProps) {
         ...formData,
         ticketNumber: formData.ticketNumber ? parseInt(formData.ticketNumber, 10) : undefined,
         registrationDate: formData.registrationDate || undefined,
+        assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
       }, token || undefined);
 
       toast.success("Ticket criado com sucesso!");
@@ -87,6 +107,7 @@ export function NewTicketDialog({ onTicketCreated }: NewTicketDialogProps) {
       type: "outros",
       url: "",
       registrationDate: new Date().toISOString().split("T")[0],
+      assigneeId: "",
     });
   };
 
@@ -166,20 +187,21 @@ export function NewTicketDialog({ onTicketCreated }: NewTicketDialogProps) {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Status</Label>
+                <Label>Responsável</Label>
                 <Select
-                  value={formData.status}
+                  value={formData.assigneeId}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, status: value })
+                    setFormData({ ...formData, assigneeId: value })
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(TICKET_STATUS_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
+                    <SelectItem value="0">Ninguém</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={String(user.id)}>
+                        {user.name || user.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -229,17 +251,39 @@ export function NewTicketDialog({ onTicketCreated }: NewTicketDialogProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="url">URL do Ticket (GLPI)</Label>
-              <Input
-                id="url"
-                type="url"
-                placeholder="https://glpi.cnj.jus.br/..."
-                value={formData.url}
-                onChange={(e) =>
-                  setFormData({ ...formData, url: e.target.value })
-                }
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, status: value })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TICKET_STATUS_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="url">URL do Ticket (GLPI)</Label>
+                <Input
+                  id="url"
+                  type="url"
+                  placeholder="https://glpi.cnj.jus.br/..."
+                  value={formData.url}
+                  onChange={(e) =>
+                    setFormData({ ...formData, url: e.target.value })
+                  }
+                />
+              </div>
             </div>
           </div>
 

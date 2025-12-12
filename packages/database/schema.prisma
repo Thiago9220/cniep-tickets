@@ -20,9 +20,17 @@ model Ticket {
   stage            String    @default("backlog") // backlog, desenvolvimento, homologacao, producao
   position         Int?      // ordem dentro da coluna (stage)
   url              String?
+  creatorId        Int?
+  assigneeId       Int?
   registrationDate DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+
+  creator          User?     @relation("TicketCreator", fields: [creatorId], references: [id])
+  assignee         User?     @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  comments         TicketComment[]
+  activities       TicketActivity[]
+  followers        TicketFollower[]
 
   @@index([status])
   @@index([priority])
@@ -138,6 +146,11 @@ model User {
   documents  Document[]
   manuals    Manual[]
   workflows  Workflow[]
+  createdTickets  Ticket[] @relation("TicketCreator")
+  assignedTickets Ticket[] @relation("TicketAssignee")
+  comments        TicketComment[]
+  activities      TicketActivity[]
+  ticketFollows   TicketFollower[]
 
   @@index([email])
   @@index([provider, providerId])

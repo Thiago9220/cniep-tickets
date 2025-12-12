@@ -404,3 +404,13 @@ export const workflowsApi = {
     });
   },
 };
+
+// Users API
+export const usersApi = {
+  getAll: async (token: string): Promise<Array<{ id: number; name: string | null; email: string; avatar: string | null }>> => {
+    const res = await api.get("/users", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  },
+};

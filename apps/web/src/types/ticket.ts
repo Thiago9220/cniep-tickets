@@ -23,6 +23,18 @@ export interface Ticket {
   registrationDate?: string | null;
   createdAt: string;
   updatedAt: string;
+  creator?: {
+    id: number;
+    name: string | null;
+    email: string;
+    avatar: string | null;
+  } | null;
+  assignee?: {
+    id: number;
+    name: string | null;
+    email: string;
+    avatar: string | null;
+  } | null;
 }
 
 export interface CreateTicketDto {
@@ -34,6 +46,7 @@ export interface CreateTicketDto {
   url?: string;
   ticketNumber?: number;
   registrationDate?: string;
+  assigneeId?: number;
 }
 
 export interface UpdateTicketDto extends Partial<CreateTicketDto> {}

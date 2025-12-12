@@ -232,6 +232,10 @@ publicRouter.get("/tickets", async (_req, res) => {
           { position: "asc" },
           { createdAt: "desc" },
         ],
+        include: {
+          creator: { select: { id: true, name: true, avatar: true, email: true } },
+          assignee: { select: { id: true, name: true, avatar: true, email: true } },
+        },
       });
       return res.json(tickets);
     } catch (err) {
@@ -239,6 +243,10 @@ publicRouter.get("/tickets", async (_req, res) => {
       console.warn("Fallback GET /tickets sem 'position' — execute as migrações para ordenar por coluna.");
       const tickets = await prisma.ticket.findMany({
         orderBy: [{ stage: "asc" }, { createdAt: "desc" }],
+        include: {
+          creator: { select: { id: true, name: true, avatar: true, email: true } },
+          assignee: { select: { id: true, name: true, avatar: true, email: true } },
+        },
       });
       return res.json(tickets);
     }
@@ -253,6 +261,10 @@ publicRouter.get("/tickets/:id", async (req, res) => {
   try {
     const ticket = await prisma.ticket.findUnique({
       where: { id: parseInt(req.params.id) },
+      include: {
+        creator: { select: { id: true, name: true, avatar: true, email: true } },
+        assignee: { select: { id: true, name: true, avatar: true, email: true } },
+      },
     });
     if (!ticket) {
       return res.status(404).json({ error: "Ticket não encontrado" });
@@ -266,7 +278,7 @@ publicRouter.get("/tickets/:id", async (req, res) => {
 // Criar um novo ticket (apenas admin)
 router.post("/tickets", adminMiddleware, async (req, res) => {
   try {
-    const { title, description, status, priority, type, url, ticketNumber, registrationDate, stage } = req.body;
+    const { title, description, status, priority, type, url, ticketNumber, registrationDate, stage, assigneeId } = req.body;
     const stageValue = stage || "backlog";
     const maxPos = await prisma.ticket.aggregate({ _max: { position: true }, where: { stage: stageValue } });
     const nextPos = (maxPos._max.position ?? 0) + 1;
@@ -283,6 +295,8 @@ router.post("/tickets", adminMiddleware, async (req, res) => {
         registrationDate: registrationDate ? new Date(registrationDate) : null,
         stage: stageValue,
         position: nextPos,
+        creatorId: req.user?.id,
+        assigneeId: assigneeId ? parseInt(assigneeId) : undefined,
       },
     });
     res.status(201).json(ticket);
@@ -295,7 +309,7 @@ router.post("/tickets", adminMiddleware, async (req, res) => {
 // Atualizar um ticket (apenas admin)
 router.put("/tickets/:id", adminMiddleware, async (req, res) => {
   try {
-    const { title, description, status, priority, type, stage, url, ticketNumber, registrationDate } = req.body;
+    const { title, description, status, priority, type, stage, url, ticketNumber, registrationDate, assigneeId } = req.body;
     const ticket = await prisma.ticket.update({
       where: { id: parseInt(req.params.id) },
       data: {
@@ -307,7 +321,8 @@ router.put("/tickets/:id", adminMiddleware, async (req, res) => {
         stage,
         url,
         ticketNumber,
-        registrationDate: registrationDate ? new Date(registrationDate) : undefined
+        registrationDate: registrationDate ? new Date(registrationDate) : undefined,
+        assigneeId: assigneeId !== undefined ? (assigneeId ? parseInt(assigneeId) : null) : undefined,
       },
     });
     res.json(ticket);

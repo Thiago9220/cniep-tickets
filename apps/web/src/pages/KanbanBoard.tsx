@@ -10,7 +10,7 @@ import {
   TICKET_PRIORITY_COLORS,
   TICKET_TYPE_LABELS,
 } from "@/types/ticket";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -44,13 +44,13 @@ import {
   MoreVertical,
   AlertCircle,
   Clock,
-  CheckCircle2,
   Rocket,
   Layers,
 } from "lucide-react";
 import { NewTicketDialog } from "@/components/NewTicketDialog";
 import { ticketsApi } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const STAGES = ["backlog", "desenvolvimento", "homologacao", "producao"] as const;
 
@@ -61,6 +61,17 @@ const STAGE_ICONS: Record<string, React.ReactNode> = {
   producao: <Rocket className="h-4 w-4" />,
 };
 
+// Helper to get initials
+const getInitials = (name: string) => {
+  if (!name) return "??";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+};
+
 export default function KanbanBoard() {
   const { user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -68,7 +79,6 @@ export default function KanbanBoard() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [draggedTicket, setDraggedTicket] = useState<Ticket | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
-  const [dragOverTicketId, setDragOverTicketId] = useState<number | null>(null);
   const [comments, setComments] = useState<Array<{ id: number; content: string; createdAt: string; user: { id: number; name: string | null; email: string } }>>([]);
   const [newComment, setNewComment] = useState("");
   const [activities, setActivities] = useState<Array<{ id: number; type: string; fromStage?: string; toStage?: string; message?: string; createdAt: string; user?: { id: number; name: string | null; email: string } }>>([]);
@@ -119,7 +129,7 @@ export default function KanbanBoard() {
           const existing = byStage[s] || [];
           // manter apenas ids existentes e adicionar novos ao final
           const filtered = existing.filter((id) => ids.includes(id));
-          const missing = ids.filter((id) => !filtered.includes(id));
+          const missing = ids.filter((id: number) => !filtered.includes(id));
           byStage[s] = [...filtered, ...missing];
         });
         saveStageOrder(byStage);
@@ -165,13 +175,11 @@ export default function KanbanBoard() {
 
   const handleDragLeave = () => {
     setDragOverStage(null);
-    setDragOverTicketId(null);
   };
 
   const handleDrop = (e: React.DragEvent, stage: string) => {
     e.preventDefault();
     setDragOverStage(null);
-    setDragOverTicketId(null);
 
     if (draggedTicket && draggedTicket.stage !== stage) {
       // Mover para outra coluna: coloca no topo da ordem do destino
@@ -451,7 +459,6 @@ export default function KanbanBoard() {
                         onDragStart={(e) => handleDragStart(e, ticket)}
                         onDragOver={(e) => {
                           e.preventDefault();
-                          setDragOverTicketId(ticket.id);
                           reorderWithinStage(stage, ticket.id);
                         }}
                         className={`cursor-pointer hover:shadow-md transition-all ${
@@ -476,10 +483,51 @@ export default function KanbanBoard() {
                               <p className="text-sm font-medium line-clamp-2">
                                 {ticket.title}
                               </p>
-                              <div className="flex items-center gap-2 mt-2">
+                              
+                              <div className="flex items-center justify-between mt-2">
                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                   {TICKET_TYPE_LABELS[ticket.type] || ticket.type}
                                 </Badge>
+
+                                <div className="flex items-center gap-1">
+                                  {/* Creator Avatar */}
+                                  {ticket.creator && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Avatar className="h-5 w-5 border border-muted-foreground/20">
+                                            <AvatarImage src={ticket.creator.avatar || undefined} />
+                                            <AvatarFallback className="text-[9px]">
+                                              {getInitials(ticket.creator.name || ticket.creator.email)}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Criado por: {ticket.creator.name || ticket.creator.email}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  
+                                  {/* Assignee Avatar */}
+                                  {ticket.assignee && (
+                                     <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Avatar className="h-5 w-5 border border-primary/20 ring-1 ring-primary/10">
+                                            <AvatarImage src={ticket.assignee.avatar || undefined} />
+                                            <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                                              {getInitials(ticket.assignee.name || ticket.assignee.email)}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Responsável: {ticket.assignee.name || ticket.assignee.email}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             {user?.isAdmin && (
@@ -608,6 +656,41 @@ export default function KanbanBoard() {
                     <p className="text-sm">
                       {new Date(selectedTicket.createdAt).toLocaleDateString("pt-BR")}
                     </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Criado por</p>
+                    <div className="flex items-center gap-2">
+                       {selectedTicket.creator ? (
+                          <>
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={selectedTicket.creator.avatar || undefined} />
+                              <AvatarFallback>{getInitials(selectedTicket.creator.name || selectedTicket.creator.email)}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{selectedTicket.creator.name || selectedTicket.creator.email}</span>
+                          </>
+                       ) : (
+                         <span className="text-sm text-muted-foreground">Desconhecido</span>
+                       )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Responsável</p>
+                     <div className="flex items-center gap-2">
+                       {selectedTicket.assignee ? (
+                          <>
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={selectedTicket.assignee.avatar || undefined} />
+                              <AvatarFallback className="bg-primary/10 text-primary">{getInitials(selectedTicket.assignee.name || selectedTicket.assignee.email)}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{selectedTicket.assignee.name || selectedTicket.assignee.email}</span>
+                          </>
+                       ) : (
+                         <span className="text-sm text-muted-foreground">Não atribuído</span>
+                       )}
+                    </div>
                   </div>
                 </div>
 
