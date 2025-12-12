@@ -434,15 +434,15 @@ export default function KanbanBoard() {
   const archivedTickets = tickets.filter(t => t.status === "fechado");
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col px-3 md:px-4 py-6">
-      <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-        <div>
+    <div className="h-[calc(100vh-4rem)] flex flex-col px-3 md:px-4 py-6 bg-slate-50 dark:bg-transparent">
+      <div className="mb-4 flex items-start md:items-center justify-between gap-3 flex-wrap">
+        <div className="flex-1 min-w-[260px]">
           <h1 className="text-3xl font-bold mb-2">Quadro de Desenvolvimento</h1>
           <p className="text-muted-foreground">
             Arraste os tickets entre as colunas para atualizar o status de desenvolvimento
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap justify-end md:flex-none">
           <div className="relative">
             <Input placeholder="Buscar por título, descrição ou #" value={search} onChange={(e) => setSearch(e.target.value)} className="w-[220px]" />
           </div>
@@ -494,7 +494,7 @@ export default function KanbanBoard() {
           return (
             <div
               key={stage}
-              className={`flex-1 min-w-[260px] max-w-[320px] flex flex-col rounded-lg border bg-muted/30 transition-all ${
+              className={`flex-1 min-w-[260px] max-w-[320px] flex flex-col rounded-lg border bg-white shadow-sm dark:bg-muted/30 transition-all ${
                 isDropTarget ? "ring-2 ring-primary bg-primary/5" : ""
               }`}
               onDragOver={(e) => handleDragOver(e, stage)}
@@ -503,7 +503,7 @@ export default function KanbanBoard() {
             >
               {/* Column Header */}
               <div
-                className={`p-3 border-b flex items-center gap-2 ${overLimit ? "bg-red-500/5" : ""}`}
+                className={`p-3 border-b flex items-center gap-2 ${overLimit ? "bg-red-500/5" : "bg-slate-50/60 dark:bg-transparent"}`}
                 style={{ borderBottomColor: stageColor }}
               >
                 <div
@@ -522,7 +522,10 @@ export default function KanbanBoard() {
               </div>
 
               {/* Tickets List */}
-              <ScrollArea className="flex-1 p-2">
+              <ScrollArea
+                className="flex-1 p-2 rounded-b-lg"
+                style={{ backgroundColor: `${stageColor}0D` }}
+              >
                 <div className="space-y-2">
                   {stageTickets.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground text-sm">

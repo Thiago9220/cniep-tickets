@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, BarChart3, Calendar, Download, PieChart, TicketIcon, Upload, AlertTriangle, Bell, Clock, X } from "lucide-react";
+import { ArrowRight, BarChart3, Calendar, Download, Kanban, TicketIcon, Upload, AlertTriangle, Bell, Clock, X } from "lucide-react";
 import { Link } from "wouter";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -336,22 +336,22 @@ export default function Home() {
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow cursor-pointer group relative overflow-hidden border-l-4 border-l-purple-500">
-          <Link href="/quarterly">
+          <Link href="/kanban">
             <div className="absolute inset-0 z-10" />
           </Link>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <PieChart className="h-5 w-5 text-purple-500" />
-                Relatório Trimestral
+                <Kanban className="h-5 w-5 text-purple-500" />
+                Quadro Kanban
               </CardTitle>
               <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
             </div>
-            <CardDescription>Foco Estratégico</CardDescription>
+            <CardDescription>Fluxo de desenvolvimento</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Integração GLPI + JIRA, análise de causa raiz e impacto do desenvolvimento.
+              Organize e acompanhe tickets por etapas: Backlog, Desenvolvimento, Homologacao e Producao.
             </p>
             <div className="flex items-center gap-2 text-sm font-medium text-purple-600">
               Ver detalhes <ArrowRight className="h-3 w-3" />

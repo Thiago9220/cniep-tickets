@@ -111,3 +111,6 @@ packages/generated/prisma
 
 # Uploads (user-uploaded files; do not track)
 apps/api/uploads/
+
+# Windows reserved device filename accidentally created; ignore it
+nul
