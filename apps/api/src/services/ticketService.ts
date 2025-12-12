@@ -3,28 +3,17 @@ import { processExcelBuffer } from "@cniep/shared/import-excel";
 
 export class TicketService {
   async listTickets() {
-    try {
-      return await prisma.ticket.findMany({
-        orderBy: [
-          { stage: "asc" },
-          // @ts-ignore
-          { position: "asc" },
-          { createdAt: "desc" },
-        ],
-        include: {
-          creator: { select: { id: true, name: true, avatar: true, email: true } },
-          assignee: { select: { id: true, name: true, avatar: true, email: true } },
-        },
-      });
-    } catch (err) {
-      return prisma.ticket.findMany({
-        orderBy: [{ stage: "asc" }, { createdAt: "desc" }],
-        include: {
-          creator: { select: { id: true, name: true, avatar: true, email: true } },
-          assignee: { select: { id: true, name: true, avatar: true, email: true } },
-        },
-      });
-    }
+    return await prisma.ticket.findMany({
+      orderBy: [
+        { stage: "asc" },
+        { position: "asc" },
+        { createdAt: "desc" },
+      ],
+      include: {
+        creator: { select: { id: true, name: true, avatar: true, email: true } },
+        assignee: { select: { id: true, name: true, avatar: true, email: true } },
+      },
+    });
   }
 
   async getTicketById(id: number) {
@@ -43,7 +32,6 @@ export class TicketService {
     const maxPos = await prisma.ticket.aggregate({ _max: { position: true }, where: { stage: stageValue } });
     const nextPos = (maxPos._max.position ?? 0) + 1;
     
-    // @ts-ignore
     return prisma.ticket.create({
       data: {
         title,
@@ -88,35 +76,23 @@ export class TicketService {
   async updateTicketStage(id: number, stage: string, userId: number | null) {
     const current = await prisma.ticket.findUnique({ where: { id } });
     
-    try {
-        const maxPos = await prisma.ticket.aggregate({
-            // @ts-ignore
-            _max: { position: true },
-            where: { stage },
-        });
-        // @ts-ignore
-        const nextPos = (maxPos._max.position ?? 0) + 1;
-        // @ts-ignore
-        const ticket = await prisma.ticket.update({
-            where: { id },
-            data: { stage, position: nextPos },
-        });
+    const maxPos = await prisma.ticket.aggregate({
+        _max: { position: true },
+        where: { stage },
+    });
+    const nextPos = (maxPos._max.position ?? 0) + 1;
+    
+    const ticket = await prisma.ticket.update({
+        where: { id },
+        data: { stage, position: nextPos },
+    });
 
-        await this.logActivity(ticket.id, userId, "move", `Movido de ${current?.stage || "?"} para ${stage}`, current?.stage || null, stage);
-        return ticket;
-    } catch (e) {
-        const ticket = await prisma.ticket.update({
-            where: { id },
-            data: { stage },
-        });
-        await this.logActivity(ticket.id, userId, "move", `Movido de ${current?.stage || "?"} para ${stage}`, current?.stage || null, stage);
-        return ticket;
-    }
+    await this.logActivity(ticket.id, userId, "move", `Movido de ${current?.stage || "?"} para ${stage}`, current?.stage || null, stage);
+    return ticket;
   }
 
   async reorderTickets(stage: string, order: number[]) {
       const ops = order.map((id, idx) =>
-        // @ts-ignore
         prisma.ticket.update({ where: { id }, data: { position: idx, stage } })
       );
       return prisma.$transaction(ops);

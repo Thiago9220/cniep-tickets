@@ -17,7 +17,7 @@ interface KanbanFiltersProps {
   sortDir: "asc" | "desc";
   onSortDirToggle: () => void;
   onShowArchived: () => void;
-  isAdmin: boolean;
+  canEditKanban: boolean;
   onTicketCreated: () => void;
 }
 
@@ -33,7 +33,7 @@ export function KanbanFilters({
   sortDir,
   onSortDirToggle,
   onShowArchived,
-  isAdmin,
+  canEditKanban,
   onTicketCreated
 }: KanbanFiltersProps) {
   return (
@@ -87,7 +87,7 @@ export function KanbanFilters({
           <Archive className="h-4 w-4 mr-2" />
           Arquivados
         </Button>
-        {isAdmin && <NewTicketDialog onTicketCreated={onTicketCreated} />}
+        {canEditKanban && <NewTicketDialog onTicketCreated={onTicketCreated} />}
       </div>
     </div>
   );

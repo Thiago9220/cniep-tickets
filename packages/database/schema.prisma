@@ -137,7 +137,8 @@ model User {
   avatar     String?  // URL da foto de perfil
   provider   String?  // "google", "github", ou null para email/senha
   providerId String?  // ID do provedor OAuth
-  role       String   @default("user") // "user" ou "admin"
+  role          String   @default("user") // "user" ou "admin"
+  canEditKanban Boolean  @default(false) // Permite editar kanban sem ser admin
   resetPasswordToken   String?   @unique
   resetPasswordExpires DateTime?
   createdAt  DateTime @default(now())

@@ -10,6 +10,7 @@ export class UserService {
         name: true,
         avatar: true,
         role: true,
+        canEditKanban: true,
         provider: true,
         createdAt: true,
         _count: {
@@ -48,6 +49,32 @@ export class UserService {
         id: true,
         email: true,
         role: true
+      }
+    });
+  }
+
+  async updateKanbanPermission(userId: number, canEditKanban: boolean) {
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, role: true }
+    });
+
+    if (!targetUser) {
+      throw new Error("Usuário não encontrado.");
+    }
+
+    // Super Admins e Admins já têm acesso completo, não precisam dessa flag
+    if (ADMIN_EMAILS.includes(targetUser.email) || targetUser.role === "admin") {
+      throw new Error("Administradores já possuem acesso total ao Kanban.");
+    }
+
+    return prisma.user.update({
+      where: { id: userId },
+      data: { canEditKanban },
+      select: {
+        id: true,
+        email: true,
+        canEditKanban: true
       }
     });
   }

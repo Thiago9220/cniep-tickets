@@ -19,8 +19,8 @@ interface KanbanColumnProps {
   onDragOver: (e: React.DragEvent, stage: string) => void;
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent, stage: string) => void;
-  
-  isAdmin: boolean;
+
+  canEditKanban: boolean;
   draggedTicketId?: number;
   onTicketDragStart: (e: React.DragEvent, ticket: Ticket) => void;
   onTicketDragOver: (stage: string, ticketId: number) => void;
@@ -36,7 +36,7 @@ export function KanbanColumn({
   onDragOver,
   onDragLeave,
   onDrop,
-  isAdmin,
+  canEditKanban,
   draggedTicketId,
   onTicketDragStart,
   onTicketDragOver,
@@ -89,7 +89,7 @@ export function KanbanColumn({
               <TicketCard
                 key={ticket.id}
                 ticket={ticket}
-                isAdmin={isAdmin}
+                canEditKanban={canEditKanban}
                 isDragged={draggedTicketId === ticket.id}
                 onDragStart={onTicketDragStart}
                 onDragOver={(e) => {

@@ -25,7 +25,7 @@ import { GripVertical, MoreVertical, ChevronLeft, ChevronRight } from "lucide-re
 
 interface TicketCardProps {
   ticket: Ticket;
-  isAdmin: boolean;
+  canEditKanban: boolean;
   isDragged: boolean;
   onDragStart: (e: React.DragEvent, ticket: Ticket) => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -38,7 +38,7 @@ const STAGES = ["backlog", "desenvolvimento", "homologacao", "producao"] as cons
 
 export function TicketCard({
   ticket,
-  isAdmin,
+  canEditKanban,
   isDragged,
   onDragStart,
   onDragOver,
@@ -74,17 +74,17 @@ export function TicketCard({
 
   return (
     <Card
-      draggable={isAdmin}
+      draggable={canEditKanban}
       onDragStart={(e) => onDragStart(e, ticket)}
       onDragOver={onDragOver}
       className={`cursor-pointer hover:shadow-md transition-all ${
         isDragged ? "opacity-50" : ""
-      } ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+      } ${canEditKanban ? "cursor-grab active:cursor-grabbing" : ""}`}
       onClick={() => onClick(ticket)}
     >
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
-          {isAdmin && (
+          {canEditKanban && (
             <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
           )}
           <div className="flex-1 min-w-0">
@@ -144,7 +144,7 @@ export function TicketCard({
               </div>
             </div>
           </div>
-          {isAdmin && (
+          {canEditKanban && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { ticketController } from "../controllers/ticketController";
-import { authMiddleware, adminMiddleware } from "../middlewares/authMiddleware";
+import { authMiddleware, adminMiddleware, kanbanMiddleware } from "../middlewares/authMiddleware";
 import { uploadMemory } from "../config/upload";
 
 const router = Router();
@@ -19,12 +19,12 @@ router.get("/tickets/stats/available-periods", ticketController.getAvailablePeri
 router.get("/tickets/stats/quarterly/:quarterKey", ticketController.getQuarterlyStats);
 router.get("/tickets/stats/available-quarters", ticketController.getAvailableQuarters);
 
-// Admin routes (Write)
-router.post("/tickets", adminMiddleware, ticketController.createTicket);
-router.put("/tickets/:id", adminMiddleware, ticketController.updateTicket);
-router.patch("/tickets/:id/stage", adminMiddleware, ticketController.updateTicketStage);
-router.post("/tickets/reorder", adminMiddleware, ticketController.reorderTickets);
-router.delete("/tickets/:id", adminMiddleware, ticketController.deleteTicket);
+// Kanban routes (Admin ou canEditKanban)
+router.post("/tickets", kanbanMiddleware, ticketController.createTicket);
+router.put("/tickets/:id", kanbanMiddleware, ticketController.updateTicket);
+router.patch("/tickets/:id/stage", kanbanMiddleware, ticketController.updateTicketStage);
+router.post("/tickets/reorder", kanbanMiddleware, ticketController.reorderTickets);
+router.delete("/tickets/:id", kanbanMiddleware, ticketController.deleteTicket);
 router.post("/tickets/import", adminMiddleware, uploadMemory.single("file"), ticketController.importTickets);
 
 // Interaction routes

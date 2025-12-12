@@ -237,7 +237,7 @@ export default function KanbanBoard() {
         sortDir={sortDir}
         onSortDirToggle={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
         onShowArchived={() => setShowArchived(true)}
-        isAdmin={!!user?.isAdmin}
+        canEditKanban={!!user?.canEditKanban}
         onTicketCreated={() => fetchTickets(true)}
       />
 
@@ -251,7 +251,7 @@ export default function KanbanBoard() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            isAdmin={!!user?.isAdmin}
+            canEditKanban={!!user?.canEditKanban}
             draggedTicketId={draggedTicket?.id}
             onTicketDragStart={handleDragStart}
             onTicketDragOver={reorderWithinStage}
@@ -349,7 +349,7 @@ export default function KanbanBoard() {
                   )}
                   {getPriorityBadge(selectedTicket.priority)}
                   <Button variant="outline" size="sm" className="ml-auto" onClick={toggleFollow}>{following ? "Deixar de seguir" : "Seguir"}</Button>
-                  {user?.isAdmin && (
+                  {user?.canEditKanban && (
                     <div className="flex gap-2 ml-2 border-l pl-2">
                         <Button variant="outline" size="icon" onClick={() => setIsCloseDialogOpen(true)} title="Concluir ticket">
                             <CheckCircle className="h-4 w-4 text-green-600" />
@@ -458,7 +458,7 @@ export default function KanbanBoard() {
                 )}
               </div>
 
-              {user?.isAdmin && (
+              {user?.canEditKanban && (
                 <div className="border-t pt-4">
                   <p className="text-sm font-medium text-muted-foreground mb-2">
                     Mover para

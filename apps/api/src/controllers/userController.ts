@@ -36,6 +36,29 @@ export class UserController {
     }
   }
 
+  async updateKanbanPermission(req: Request, res: Response) {
+    try {
+      const userId = parseInt(req.params.id);
+      const { canEditKanban } = req.body;
+
+      if (typeof canEditKanban !== "boolean") {
+        return res.status(400).json({ error: "canEditKanban deve ser true ou false." });
+      }
+
+      const user = await userService.updateKanbanPermission(userId, canEditKanban);
+      res.json(user);
+    } catch (error: any) {
+      console.error("Erro ao atualizar permissão do kanban:", error);
+      if (error.message.includes("não encontrado")) {
+        return res.status(404).json({ error: error.message });
+      }
+      if (error.message.includes("Administradores")) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: "Erro ao atualizar permissão do kanban" });
+    }
+  }
+
   async delete(req: Request, res: Response) {
     const logger = createLogger(req);
     try {

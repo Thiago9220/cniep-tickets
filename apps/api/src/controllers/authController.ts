@@ -236,6 +236,7 @@ export class AuthController {
           avatar: true,
           provider: true,
           role: true,
+          canEditKanban: true,
           createdAt: true,
         },
       });
@@ -244,9 +245,12 @@ export class AuthController {
         return res.status(404).json({ error: "Usuário não encontrado" });
       }
 
+      const isAdmin = user.role === "admin" || ADMIN_EMAILS.includes(user.email);
+
       res.json({
         ...user,
-        isAdmin: user.role === "admin" || ADMIN_EMAILS.includes(user.email),
+        isAdmin,
+        canEditKanban: isAdmin || user.canEditKanban,
       });
     } catch (error) {
       console.error("Erro ao buscar usuário:", error);

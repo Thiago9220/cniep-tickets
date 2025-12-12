@@ -8,6 +8,7 @@ interface User {
   avatar?: string | null;
   provider?: string | null;
   isAdmin?: boolean;
+  canEditKanban?: boolean;
 }
 
 interface AuthContextType {

@@ -33,7 +33,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Shield, ShieldAlert, User as UserIcon, Lock, UserPlus, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Loader2, Shield, ShieldAlert, User as UserIcon, Lock, UserPlus, Eye, EyeOff, Trash2, Kanban } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +64,7 @@ interface User {
   name: string | null;
   avatar: string | null;
   role: string;
+  canEditKanban: boolean;
   provider: string | null;
   createdAt: string;
   _count?: {
@@ -141,6 +143,26 @@ export default function Users() {
   };
 
   const isSuperAdmin = (email: string) => SUPER_ADMIN_EMAILS.includes(email);
+
+  const handleKanbanPermissionChange = async (userId: number, canEditKanban: boolean) => {
+    try {
+      const token = getAuthToken();
+      await api.patch(`/users/${userId}/kanban-permission`,
+        { canEditKanban },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setUsers(users.map(u =>
+        u.id === userId ? { ...u, canEditKanban } : u
+      ));
+
+      toast.success(canEditKanban ? "Permissão de edição do Kanban concedida" : "Permissão de edição do Kanban removida");
+    } catch (error: any) {
+      console.error("Erro ao atualizar permissão do kanban:", error);
+      const message = error.response?.data?.error || "Erro ao atualizar permissão";
+      toast.error(message);
+    }
+  };
 
   const handleDeleteUser = async (userId: number) => {
     try {
@@ -344,6 +366,7 @@ export default function Users() {
                   <TableHead>Cadastro</TableHead>
                   <TableHead>Docs</TableHead>
                   <TableHead>Papel</TableHead>
+                  <TableHead className="text-center">Editar Kanban</TableHead>
                   <TableHead className="w-[80px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -427,6 +450,27 @@ export default function Users() {
                             </Select>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {isSuper || u.role === "admin" ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <div className="flex items-center justify-center">
+                                  <Kanban className="h-4 w-4 text-green-600" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Administradores já têm acesso total</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <Switch
+                            checked={u.canEditKanban}
+                            onCheckedChange={(checked) => handleKanbanPermissionChange(u.id, checked)}
+                          />
+                        )}
                       </TableCell>
                       <TableCell>
                         {!isSuper && user?.id !== u.id && (
